@@ -5,6 +5,8 @@ import pyautogui
 import cv2
 import numpy as np
 from PIL import ImageGrab
+import time
+import random
 
 SERVER = "irc.twitch.tv"
 PORT = 6667
@@ -26,6 +28,7 @@ turn_image = 'assets/your_turn.png'
 play_image = 'assets/play_now.png'
 confirm_image = 'assets/confirm.png'
 test_image = 'assets/test.png'
+close_image = 'assets/close.png'
 
 
 class TppBot:
@@ -46,7 +49,7 @@ class TppBot:
 				Loading = self.loadingComplete(line)
 		self.irc.send("CAP REQ :twitch.tv/tags\r\n".encode())
 
-	def loadingComplete(line):
+	def loadingComplete(self, line):
 		if("End of /NAMES list" in line):
 			print("TwitchBot has joined " + CHANNEL + "'s Channel!")
 			#sendMessage(irc, "Hello World!")
@@ -119,6 +122,8 @@ class TppBot:
 			self.messages['!raise19'] += 1
 		elif message == "!raise20":
 			self.messages['!raise20'] += 1
+		else:
+			message = ""
 		return message
 
 
@@ -166,7 +171,6 @@ class TppBot:
 		if(numberRaises > max):
 			maxCommand = self.calculateRaiseCommand(numberRaises)
 		self.sendMessage(self.irc, "The next command is: " + maxCommand)
-		self.clearCommands()
 		return maxCommand
 
 	def calculateNumberRaises(self):
@@ -239,7 +243,7 @@ class TppBot:
 			pyautogui.press('p')
 
 
-	def find_and_click_image(target_image_path, confidence_threshold=0.8):
+	def find_and_click_image(self, target_image_path, confidence_threshold=0.8):
 		target_image = cv2.imread(target_image_path)
 		
 		while True:
@@ -263,13 +267,12 @@ class TppBot:
 				pyautogui.click(center_x, center_y)
 
 				print("¡Imagen encontrada " + target_image_path)
-				# Puedes realizar acciones adicionales aquí si es necesario
 				break
 			
 			time.sleep(1)
 
 
-	def find_and_move_image(target_image_path, confidence_threshold=0.8):
+	def find_and_move_image(self, target_image_path, confidence_threshold=0.8):
 		target_image = cv2.imread(target_image_path)
 		
 		while True:
@@ -292,41 +295,51 @@ class TppBot:
 				# Click on the center of the found image
 				pyautogui.moveTo(center_x, center_y)
 
-				print("¡Imagen encontrada " + target_image_path)
-				# Puedes realizar acciones adicionales aquí si es necesario
+				print("¡Imagen encontrada " + target_image_path)				
 				break
 			
 			time.sleep(1)
 
+	
+	def find_image(self, target_image_path, confidence_threshold=0.8):
+		target_image = cv2.imread(target_image_path)		
+		screen = np.array(ImageGrab.grab())
+		result = cv2.matchTemplate(screen, target_image, cv2.TM_CCOEFF_NORMED)
+		
+		min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+
+		if max_val >= confidence_threshold:			
+			return True
+		else:
+			return False	
+			
+			
+			
+
 	def getMessages(self):
-		while True:
-				try:
-					readbuffer = self.irc.recv(1024).decode()
-				except:
-					readbuffer = ""
-				for line in readbuffer.split("\r\n"):
-					if line == "":
-						continue
-					if "PING :tmi.twitch.tv" in line:
-						#print(line)
-						msgg = "PONG :tmi.twitch.tv\r\n".encode()
-						self.irc.send(msgg)
-						#print(msgg)
-						continue
-					else:
-						try:
-							user = self.getUser(line)
+		start_time = time.time()
+		while time.time() - start_time <= 10:
+			try:
+				readbuffer = self.irc.recv(1024).decode()
+			except:
+				readbuffer = ""
+			for line in readbuffer.split("\r\n"):
+				if line == "":
+					continue
+				if "PING :tmi.twitch.tv" in line:
+					msgg = "PONG :tmi.twitch.tv\r\n".encode()
+					self.irc.send(msgg)
+					continue
+				else:
+					try:
+						user = self.getUser(line)								
+						print(user + " : " + message)																					
+						if(user not in self.users):
 							message = self.getMessage(line)		
-							print(user + " : " + message)														
-							#print(messages)
-							self.executeCommand(self.votation())
-							if(user not in self.users):
-								self.users.append(user)
-								print(self.users)
-								#message = getMessage(line)											
-								#print(messages)
-						except Exception:
-							print("Error")
+							if message != "":
+								self.users.append(user)																	
+					except Exception:
+						print("Error")
 		
 
 	def startBot(self):			
@@ -336,7 +349,9 @@ class TppBot:
 					"JOIN #" + CHANNEL + "\n").encode())
 		self.joinchat()
 		self.clearCommands()
-		self.getMessages()
+		while True:
+			self.startGame()
+			time.sleep(random.randint(31, 63))
 
 	
 	def startGame(self):
@@ -346,10 +361,26 @@ class TppBot:
 		self.find_and_click_image(play_image)
 		time.sleep(1)
 		self.find_and_move_image(confirm_image)
-	
-	
+		time.sleep(2)
+		self.playGame()
 
+	def playGame(self):
+		while True:
+			#game ended
+			if self.find_image(close_image):
+				self.find_and_click_image(close_image)
+				break
+			#our turn
+			elif self.find_image(turn_image):
+				self.getMessages()
+				self.executeCommand(self.votation())
+				self.clearCommands()
+			time.sleep(0.6)
+	
+	
 def main():
-	if __name__ =='__main__':
-		TppBot().startGame()
+	if __name__ =='__main__':	
+		bot = TppBot()
+		#bot.startBot()
+		bot.find_and_click_image(turn_image)
 main()
