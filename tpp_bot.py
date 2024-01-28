@@ -30,24 +30,28 @@ confirm_image = 'assets/confirm.png'
 test_image = 'assets/test.png'
 close_image = 'assets/close.png'
 
+irc = socket.socket()
+irc.connect((SERVER, PORT))
+irc.send((	"PASS " + PASS + "\n" +
+	"NICK " + BOT + "\n" +
+	"JOIN #" + CHANNEL + "\n").encode())
 
 class TppBot:
 	
 	def __init__(self):
 		self.users = []
 		self.messages = {}
-		self.irc = socket.socket()
 
 	def joinchat(self):
 		Loading = True
 		while Loading:
-			readbuffer_join = self.irc.recv(1024)
+			readbuffer_join = irc.recv(1024)
 			readbuffer_join = readbuffer_join.decode()
 			print(readbuffer_join)
 			for line in readbuffer_join.split("\n")[0:-1]:
 				print(line)
 				Loading = self.loadingComplete(line)
-		self.irc.send("CAP REQ :twitch.tv/tags\r\n".encode())
+		irc.send("CAP REQ :twitch.tv/tags\r\n".encode())
 
 	def loadingComplete(self, line):
 		if("End of /NAMES list" in line):
@@ -59,9 +63,9 @@ class TppBot:
 
 	def sendMessage(self, message):
 		messageTemp = "PRIVMSG #" + CHANNEL + " :" + message
-		self.irc.send((messageTemp + "\n").encode())	
+		irc.send((messageTemp + "\n").encode())	
 
-	def getUser(line):
+	def getUser(self, line):
 		#global user
 		colons = line.count(":")
 		colonless = colons-1
@@ -156,6 +160,7 @@ class TppBot:
 		self.users.clear()
 
 	def votation(self):
+		print("Votation...")
 		max = self.messages['!check']
 		maxCommand = '!check'
 		if(self.messages['!fold'] > max):
@@ -170,7 +175,7 @@ class TppBot:
 		numberRaises = self.calculateNumberRaises()
 		if(numberRaises > max):
 			maxCommand = self.calculateRaiseCommand(numberRaises)
-		self.sendMessage(self.irc, "The next command is: " + maxCommand)
+		self.sendMessage("The next command is: " + maxCommand)
 		return maxCommand
 
 	def calculateNumberRaises(self):
@@ -308,7 +313,8 @@ class TppBot:
 		
 		min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
 
-		if max_val >= confidence_threshold:			
+		if max_val >= confidence_threshold:		
+			print("¡Imagen encontrada " + target_image_path)		
 			return True
 		else:
 			return False	
@@ -318,9 +324,10 @@ class TppBot:
 
 	def getMessages(self):
 		start_time = time.time()
-		while time.time() - start_time <= 10:
+		print("Getting messages...")
+		while time.time() - start_time < 7:
 			try:
-				readbuffer = self.irc.recv(1024).decode()
+				readbuffer = irc.recv(1024).decode()
 			except:
 				readbuffer = ""
 			for line in readbuffer.split("\r\n"):
@@ -328,25 +335,21 @@ class TppBot:
 					continue
 				if "PING :tmi.twitch.tv" in line:
 					msgg = "PONG :tmi.twitch.tv\r\n".encode()
-					self.irc.send(msgg)
+					irc.send(msgg)
 					continue
 				else:
 					try:
-						user = self.getUser(line)								
-						print(user + " : " + message)																					
+						user = self.getUser(line)																																	
 						if(user not in self.users):
 							message = self.getMessage(line)		
 							if message != "":
-								self.users.append(user)																	
-					except Exception:
-						print("Error")
+								self.users.append(user)		
+								print(user + " : " + message)																
+					except Exception as e:
+						print("Error: " + str(e))
 		
 
 	def startBot(self):			
-		self.irc.connect((SERVER, PORT))
-		self.irc.send((	"PASS " + PASS + "\n" +
-					"NICK " + BOT + "\n" +
-					"JOIN #" + CHANNEL + "\n").encode())
 		self.joinchat()
 		self.clearCommands()
 		while True:
@@ -355,32 +358,36 @@ class TppBot:
 
 	
 	def startGame(self):
-		self.startBot()
+		print("Starting game...")
 		self.find_and_click_image(mode_image)
 		time.sleep(1)
 		self.find_and_click_image(play_image)
 		time.sleep(1)
-		self.find_and_move_image(confirm_image)
+		self.find_and_click_image(confirm_image)
 		time.sleep(2)
 		self.playGame()
 
 	def playGame(self):
 		while True:
+			print("Playing game...")
 			#game ended
 			if self.find_image(close_image):
+				print("Game ended")
 				self.find_and_click_image(close_image)
 				break
 			#our turn
 			elif self.find_image(turn_image):
+				print("Our turn")
 				self.getMessages()
 				self.executeCommand(self.votation())
 				self.clearCommands()
+				print("Turn ended")
 			time.sleep(0.6)
 	
 	
 def main():
 	if __name__ =='__main__':	
 		bot = TppBot()
-		#bot.startBot()
-		bot.find_and_click_image(turn_image)
+		bot.startBot()
+		#bot.find_image(turn_image, 0.8)
 main()
