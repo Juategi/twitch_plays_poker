@@ -355,6 +355,7 @@ class TppBot:
 			if self.find_image(in_game_image):
 				self.playGame()
 			else:
+				#TODO: check si hay viewers
 				self.startGame()
 				print("Waiting next game...")
 			time.sleep(random.randint(31, 63))
