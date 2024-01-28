@@ -1,5 +1,4 @@
 import socket
-import threading
 import time
 import pyautogui
 import cv2
@@ -29,8 +28,10 @@ play_image = 'assets/play_now.png'
 confirm_image = 'assets/confirm.png'
 test_image = 'assets/test.png'
 close_image = 'assets/close.png'
+in_game_image = 'assets/in_game.png'
 
 irc = socket.socket()
+irc.settimeout(9)
 irc.connect((SERVER, PORT))
 irc.send((	"PASS " + PASS + "\n" +
 	"NICK " + BOT + "\n" +
@@ -56,7 +57,6 @@ class TppBot:
 	def loadingComplete(self, line):
 		if("End of /NAMES list" in line):
 			print("TwitchBot has joined " + CHANNEL + "'s Channel!")
-			#sendMessage(irc, "Hello World!")
 			return False
 		else:
 			return True
@@ -66,7 +66,6 @@ class TppBot:
 		irc.send((messageTemp + "\n").encode())	
 
 	def getUser(self, line):
-		#global user
 		colons = line.count(":")
 		colonless = colons-1
 		separate = line.split(":", colons)
@@ -74,58 +73,57 @@ class TppBot:
 		return user
 
 	def getMessage(self, line):
-		#global message
 		colons = line.count(":")
 		message = (line.split(":", colons))[colons]	
 		message = message.replace(" ", "")
-		if message == "!check":
+		if "!check" in message:
 			self.messages['!check'] += 1
-		elif message == "!fold":
+		elif "!fold" in message:
 			self.messages['!fold'] += 1
-		elif message == "!call":
+		elif "!call" in message:
 			self.messages['!call'] += 1
-		elif message == "!allin":
+		elif "!allin" in message:
 			self.messages['!allin'] += 1
-		elif  message == "!raise1":
-			self.messages['!raise1'] += 1
-		elif message == "!raise2":
-			self.messages['!raise2'] += 1
-		elif message == "!raise3":
-			self.messages['!raise3'] += 1
-		elif message == "!raise4":
-			self.messages['!raise4'] += 1
-		elif message == "!raise5":
-			self.messages['!raise5'] += 1
-		elif message == "!raise6":
-			self.messages['!raise6'] += 1
-		elif message == "!raise7":
-			self.messages['!raise7'] += 1
-		elif message == "!raise8":
-			self.messages['!raise8'] += 1
-		elif message == "!raise9":
-			self.messages['!raise9'] += 1
-		elif message == "!raise10":
+		elif "!raise10" in message:
 			self.messages['!raise10'] += 1
-		elif message == "!raise11":
+		elif "!raise11" in message:
 			self.messages['!raise11'] += 1
-		elif message == "!raise12":
+		elif "!raise12" in message:
 			self.messages['!raise12'] += 1
-		elif message == "!raise13":
+		elif "!raise13" in message:
 			self.messages['!raise13'] += 1
-		elif message == "!raise14":
+		elif "!raise14" in message:
 			self.messages['!raise14'] += 1
-		elif message == "!raise15":
+		elif "!raise15" in message:
 			self.messages['!raise15'] += 1
-		elif message == "!raise16":
+		elif "!raise16" in message:
 			self.messages['!raise16'] += 1
-		elif message == "!raise17":
+		elif "!raise17" in message:
 			self.messages['!raise17'] += 1
-		elif message == "!raise18":
+		elif "!raise18" in message:
 			self.messages['!raise18'] += 1
-		elif message == "!raise19":
+		elif "!raise19" in message:
 			self.messages['!raise19'] += 1
-		elif message == "!raise20":
+		elif "!raise20" in message:
 			self.messages['!raise20'] += 1
+		elif  "!raise1" in message:
+			self.messages['!raise1'] += 1
+		elif "!raise2" in message:
+			self.messages['!raise2'] += 1
+		elif "!raise3" in message:
+			self.messages['!raise3'] += 1
+		elif "!raise4" in message:
+			self.messages['!raise4'] += 1
+		elif "!raise5" in message:
+			self.messages['!raise5'] += 1
+		elif "!raise6" in message:
+			self.messages['!raise6'] += 1
+		elif "!raise7" in message:
+			self.messages['!raise7'] += 1
+		elif "!raise8" in message:
+			self.messages['!raise8'] += 1
+		elif "!raise9" in message:
+			self.messages['!raise9'] += 1
 		else:
 			message = ""
 		return message
@@ -159,7 +157,7 @@ class TppBot:
 
 		self.users.clear()
 
-	def votation(self):
+	def votation(self, ponderation=1.3):
 		print("Votation...")
 		max = self.messages['!check']
 		maxCommand = '!check'
@@ -174,7 +172,8 @@ class TppBot:
 			maxCommand = '!allin'
 		numberRaises = self.calculateNumberRaises()
 		if(numberRaises > max):
-			maxCommand = self.calculateRaiseCommand(numberRaises)
+			maxCommand = self.calculateRaiseCommand(numberRaises, ponderation)
+		print("The next command is: " + maxCommand)
 		self.sendMessage("The next command is: " + maxCommand)
 		return maxCommand
 
@@ -185,9 +184,9 @@ class TppBot:
 				total += votes
 		return total
 
-	def calculateRaiseCommand(self, totalVotes):
+	#TODO: revisar, no funciona bien con ponderacion, probar con 1 solo comando
+	def calculateRaiseCommand(self, totalVotes, ponderation=1.3):
 		totalValue = 0
-		ponderation = 1.3
 		for key, votes in self.messages.items():
 			if key.startswith('!raise'):
 				value = int(key.replace('!raise', ''))
@@ -197,7 +196,7 @@ class TppBot:
 		print(command)
 		return command 
 
-	def executeCommand(command):
+	def executeCommand(self, command):
 		if command == '!check':
 			pyautogui.press('c')
 		elif command == '!fold':
@@ -271,7 +270,7 @@ class TppBot:
 				# Click on the center of the found image
 				pyautogui.click(center_x, center_y)
 
-				print("¡Imagen encontrada " + target_image_path)
+				print("Image found " + target_image_path)
 				break
 			
 			time.sleep(1)
@@ -297,10 +296,10 @@ class TppBot:
 				center_x = top_left_x + w // 2
 				center_y = top_left_y + h // 2
 
-				# Click on the center of the found image
+				# Move to the center of the found image
 				pyautogui.moveTo(center_x, center_y)
 
-				print("¡Imagen encontrada " + target_image_path)				
+				print("Image found " + target_image_path)				
 				break
 			
 			time.sleep(1)
@@ -314,7 +313,7 @@ class TppBot:
 		min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
 
 		if max_val >= confidence_threshold:		
-			print("¡Imagen encontrada " + target_image_path)		
+			print("Image found " + target_image_path)		
 			return True
 		else:
 			return False	
@@ -324,8 +323,8 @@ class TppBot:
 
 	def getMessages(self):
 		start_time = time.time()
-		print("Getting messages...")
 		while time.time() - start_time < 7:
+			print("Getting messages...")
 			try:
 				readbuffer = irc.recv(1024).decode()
 			except:
@@ -353,12 +352,17 @@ class TppBot:
 		self.joinchat()
 		self.clearCommands()
 		while True:
-			self.startGame()
+			if self.find_image(in_game_image):
+				self.playGame()
+			else:
+				self.startGame()
+				print("Waiting next game...")
 			time.sleep(random.randint(31, 63))
 
 	
 	def startGame(self):
 		print("Starting game...")
+		time.sleep(1)
 		self.find_and_click_image(mode_image)
 		time.sleep(1)
 		self.find_and_click_image(play_image)
@@ -371,6 +375,7 @@ class TppBot:
 		while True:
 			print("Playing game...")
 			#game ended
+			#TODO: revisar ingame si va, añadir win image
 			if self.find_image(close_image):
 				print("Game ended")
 				self.find_and_click_image(close_image)
