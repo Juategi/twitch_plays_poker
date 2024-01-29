@@ -1,3 +1,4 @@
+from get_stats import getBalance
 from tpp_bot import TppBot
 
 
@@ -31,9 +32,8 @@ def test_votation():
     bot.messages['!raise18'] = 0
     bot.messages['!raise19'] = 0
     bot.messages['!raise20'] = 0
-    print(bot.votation(ponderation=1))
+    print(bot.calculateVotation(ponderation=1))
     
 
 if __name__ == "__main__":
-    test_bot()
-    print("Everything passed")
+    print(getBalance())

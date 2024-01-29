@@ -2,7 +2,7 @@ import tools.ocr_tools as ocr_tools
 import time
 import tools.find_image_tools as find_image_tools
 
-cashier_image = 'assets/cashier.png'
+cashier_image = '../assets/cashier.png'
 
 def closeCashier():
     window = ocr_tools.getWindow("Cashier")

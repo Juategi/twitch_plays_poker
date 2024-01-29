@@ -6,6 +6,8 @@ import tools.find_image_tools as find_image_tools
 import get_stats
 import twitch_chat
 import tools.files_tools as files_tools
+import config.config as config
+
 
 
 mode_image = '../assets/mode.png'
@@ -15,6 +17,7 @@ confirm_image = '../assets/confirm.png'
 test_image = '../assets/test.png'
 close_image = '../assets/close.png'
 in_game_image = '../assets/in_game.png'
+participants_path = '../saves/participants.txt'
 
 
 class TppBot:
@@ -22,7 +25,7 @@ class TppBot:
 	def __init__(self):
 		self.users = []
 		self.messages = {}
-		self.participants = files_tools.retrieveListFromFile('../saves/participants.txt')
+		self.participants = files_tools.retrieveListFromFile(participants_path)
 
 	def getUser(self, line):
 		colons = line.count(":")
@@ -92,7 +95,7 @@ class TppBot:
 		return message
 
 
-	def votation(self, ponderation=1.3):
+	def calculateVotation(self, ponderation=1.3):
 		print("Votation...")
 		max = self.messages['!check']
 		maxCommand = '!check'
@@ -191,7 +194,7 @@ class TppBot:
 				self.awaitStartCommand()
 				time.sleep(random.randint(11, 19))
 				self.startGame()
-				self.saveParticipants()						
+				self.persistParticipants()						
 
 	
 	def awaitStartCommand(self):
@@ -227,14 +230,14 @@ class TppBot:
 			elif find_image_tools.findImage(turn_image):
 				print("Our turn")
 				self.getMessages()
-				self.executeCommand(self.votation())
+				self.executeCommand(self.calculateVotation())
 				self.clearCommands()
 				print("Turn ended")
 			time.sleep(0.6)
 
 	def getMessages(self):
 		start_time = time.time()
-		while time.time() - start_time < 7:
+		while time.time() - start_time < config.turn_timeout:
 			print("Getting messages...")
 			for line in twitch_chat.getMessages():
 				user = self.getUser(line)																																	
@@ -249,8 +252,8 @@ class TppBot:
 		if user not in self.participants:
 			self.participants.append(user)
 	
-	def saveParticipants(self):
-		files_tools.saveListToFile('../saves/participants.txt', self.participants)
+	def persistParticipants(self):
+		files_tools.saveListToFile(participants_path, self.participants)
 			
 	def clearCommands(self):
 		self.messages['!check'] = 0

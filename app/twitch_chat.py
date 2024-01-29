@@ -1,6 +1,7 @@
 import socket
 import os
 from dotenv import load_dotenv
+import config.config as config
 
 SERVER = "irc.twitch.tv"
 PORT = 6667
@@ -16,7 +17,7 @@ irc = socket.socket()
 def joinchat():
     load_dotenv()
     PASS = os.getenv('PASS')
-    irc.settimeout(9)
+    irc.settimeout(config.turn_timeout)
     irc.connect((SERVER, PORT))
     irc.send((	"PASS " + PASS + "\n" +
         "NICK " + BOT + "\n" +
