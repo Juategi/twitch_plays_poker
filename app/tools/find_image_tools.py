@@ -3,6 +3,7 @@ import numpy as np
 from PIL import ImageGrab
 import time
 import pyautogui
+import pyautogui
 
 def findImage( target_image_path, confidence_threshold=0.8):
     target_image = cv2.imread(target_image_path)		
@@ -50,3 +51,9 @@ def findAndMoveToImage(target_image_path, confidence_threshold=0.8, click = True
         
         time.sleep(1)
     
+def moveMouseToCenter():
+        screen_width, screen_height = pyautogui.size()
+        center_x = screen_width // 2
+        center_y = screen_height // 2
+        pyautogui.moveTo(center_x, center_y)     
+

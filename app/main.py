@@ -8,4 +8,5 @@ def main():
         thread = threading.Thread(target=bot.startBot)
         thread.start()
         ui_stats.createWindow()
+        #bot.startBot()
 main()

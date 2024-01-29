@@ -188,12 +188,13 @@ class TppBot:
 	def startBot(self):			
 		twitch_chat.joinchat()
 		self.clearCommands()
+		pyautogui.FAILSAFE = False
 		while True:
 			if find_image_tools.findImage(in_game_image):
 				self.playGame()
 			else:
-				self.awaitStartCommand()
-				time.sleep(random.randint(11, 19))
+				#self.awaitStartCommand()
+				#time.sleep(random.randint(11, 19))
 				self.startGame()
 				self.persistParticipants()						
 
