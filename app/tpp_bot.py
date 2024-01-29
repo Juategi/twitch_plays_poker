@@ -284,8 +284,3 @@ class TppBot:
 		self.users.clear()
 		
 	
-def main():
-	if __name__ =='__main__':	
-		bot = TppBot()
-		bot.startBot()
-main()

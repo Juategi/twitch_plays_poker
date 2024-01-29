@@ -7,9 +7,16 @@ cashier_image = '../assets/cashier.png'
 spins_path = '../saves/spins.txt'
 
 #Balance
-def closeCashier():
-    window = ocr_tools.getWindow("Cashier")
-    window.close()
+def getBalance():
+    find_image_tools.findAndMoveToImage(cashier_image)
+    time.sleep(5)
+    balance = getTextFromCashier()
+    while balance == "-1":
+        time.sleep(1)
+        balance = getTextFromCashier()
+    closeCashier()
+    time.sleep(1)
+    return balance
 
 def getTextFromCashier():
     window_title_to_capture = "Cashier"
@@ -25,13 +32,11 @@ def getTextFromCashier():
         for line in extracted_text_lines:
             if "EUR" in line:
                 return line.replace("EUR", "").strip()
-
-def getBalance():
-    find_image_tools.findAndMoveToImage(cashier_image)
-    time.sleep(5)
-    balance = getTextFromCashier()
-    closeCashier()
-    return balance
+    return "-1"
+            
+def closeCashier():
+    window = ocr_tools.getWindow("Cashier")
+    window.close()
 
 
 #Spins
