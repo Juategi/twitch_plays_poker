@@ -65,6 +65,17 @@ class TppBot:
 		messageTemp = "PRIVMSG #" + CHANNEL + " :" + message
 		irc.send((messageTemp + "\n").encode())	
 
+	def getNumberOfViewers(self):
+		irc.send(("CAP REQ :twitch.tv/membership\r\n").encode())
+		irc.send(("CAP REQ :twitch.tv/commands\r\n").encode())
+		irc.send(("CAP REQ :twitch.tv/tags\r\n").encode())
+		irc.send(("NAMES #" + CHANNEL + "\r\n").encode())
+		readbuffer = irc.recv(1024).decode()
+		for line in readbuffer.split("\n")[0:-1]:
+			if("End of /NAMES list" in line):
+				return line.split(':')[2]
+		return 0
+
 	def getUser(self, line):
 		colons = line.count(":")
 		colonless = colons-1
@@ -351,6 +362,7 @@ class TppBot:
 	def startBot(self):			
 		self.joinchat()
 		self.clearCommands()
+		print(self.getNumberOfViewers())
 		while True:
 			if self.find_image(in_game_image):
 				self.playGame()
@@ -395,5 +407,5 @@ def main():
 	if __name__ =='__main__':	
 		bot = TppBot()
 		bot.startBot()
-		#bot.find_image(turn_image, 0.8)
+		#bot.find_image(close_image, 0.8)
 main()
