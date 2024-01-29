@@ -24,14 +24,11 @@ def updateStats():
         earned = 0
     balanceLabel.config(text="Total earned: " + str(earned) + "€")
     spinsLabel.config(text="Spins won: " + str(spins))
-    #TODO: Update starts after every game
 
 def updateNextMove(nextMove):
     nextMoveLabel.config(text="Next move: " + nextMove)
 
-
-
 def main():
     if __name__ =='__main__':   
         createWindow()
-main()
+#main()

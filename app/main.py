@@ -4,8 +4,8 @@ import threading
 
 def main():
     if __name__ =='__main__':   
-        #windowThread = threading.Thread(target=ui_stats.createWindow)
-        #windowThread.start()
         bot = TppBot()
-        bot.startBot()       
+        thread = threading.Thread(target=bot.startBot)
+        thread.start()
+        ui_stats.createWindow()
 main()

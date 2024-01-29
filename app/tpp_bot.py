@@ -4,6 +4,7 @@ import time
 import random
 import tools.find_image_tools as find_image_tools
 import get_stats
+import ui_stats
 import twitch_chat
 import tools.files_tools as files_tools
 import config.config as config
@@ -217,6 +218,7 @@ class TppBot:
 		find_image_tools.findAndMoveToImage(confirm_image, 0.8, False)
 		time.sleep(2)
 		self.playGame()
+		ui_stats.updateStats()
 
 	def playGame(self):
 		while True:
@@ -231,7 +233,9 @@ class TppBot:
 			elif find_image_tools.findImage(turn_image):
 				print("Our turn")
 				self.getMessages()
-				self.executeCommand(self.calculateVotation())
+				command = self.calculateVotation()
+				ui_stats.updateNextMove(command)
+				self.executeCommand(command)
 				self.clearCommands()
 				print("Turn ended")
 			time.sleep(0.6)
