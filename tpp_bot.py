@@ -65,28 +65,21 @@ class TppBot:
 		messageTemp = "PRIVMSG #" + CHANNEL + " :" + message
 		irc.send((messageTemp + "\n").encode())	
 
-	def getNumberOfViewers(self):
-		irc.send(("CAP REQ :twitch.tv/membership\r\n").encode())
-		irc.send(("CAP REQ :twitch.tv/commands\r\n").encode())
-		irc.send(("CAP REQ :twitch.tv/tags\r\n").encode())
-		irc.send(("NAMES #" + CHANNEL + "\r\n").encode())
-		readbuffer = irc.recv(1024).decode()
-		for line in readbuffer.split("\n")[0:-1]:
-			if("End of /NAMES list" in line):
-				return line.split(':')[2]
-		return 0
-
 	def getUser(self, line):
 		colons = line.count(":")
 		colonless = colons-1
 		separate = line.split(":", colons)
 		user = separate[colonless].split("!", 1)[0]		
 		return user
-
-	def getMessage(self, line):
+	
+	def decodeMessage(self, line):
 		colons = line.count(":")
 		message = (line.split(":", colons))[colons]	
 		message = message.replace(" ", "")
+		return message
+
+	def getMessage(self, line):
+		message = self.decodeMessage(line)
 		if "!check" in message:
 			self.messages['!check'] += 1
 		elif "!fold" in message:
@@ -362,15 +355,38 @@ class TppBot:
 	def startBot(self):			
 		self.joinchat()
 		self.clearCommands()
-		print(self.getNumberOfViewers())
 		while True:
 			if self.find_image(in_game_image):
 				self.playGame()
 			else:
-				#TODO: check si hay viewers
-				self.startGame()
-				print("Waiting next game...")
-			time.sleep(random.randint(31, 63))
+				self.awaitStartCommand()
+				time.sleep(random.randint(11, 19))
+				self.startGame()						
+
+	
+	def awaitStartCommand(self):
+		while True:
+			print("Waiting start command...")
+			try:
+				readbuffer = irc.recv(1024).decode()
+			except:
+				readbuffer = ""
+			for line in readbuffer.split("\r\n"):
+				if line == "":
+					continue
+				if "PING :tmi.twitch.tv" in line:
+					msgg = "PONG :tmi.twitch.tv\r\n".encode()
+					irc.send(msgg)
+					continue
+				else:
+					try:
+						message = self.decodeMessage(line)		
+						print(message)																															
+						if "!start" in message :
+							return
+					except Exception as e:
+						print("Error: " + str(e))
+			time.sleep(1)
 
 	
 	def startGame(self):
@@ -380,7 +396,7 @@ class TppBot:
 		time.sleep(1)
 		self.find_and_click_image(play_image)
 		time.sleep(1)
-		self.find_and_click_image(confirm_image)
+		self.find_and_move_image(confirm_image)
 		time.sleep(2)
 		self.playGame()
 
@@ -388,7 +404,6 @@ class TppBot:
 		while True:
 			print("Playing game...")
 			#game ended
-			#TODO: revisar ingame si va, añadir win image
 			if self.find_image(close_image):
 				print("Game ended")
 				self.find_and_click_image(close_image)
