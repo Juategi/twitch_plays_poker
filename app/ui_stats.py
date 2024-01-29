@@ -1,6 +1,11 @@
 import tkinter as tk
 import get_stats as stats
 import config.config as config
+import tools.files_tools as files_tools
+import time
+
+stats_path = '../saves/stats.txt'
+
 window = tk.Tk()
 balanceLabel = tk.Label(window, text="Total earned: 0€", fg="white", bg="black", font=("Arial", 28))
 spinsLabel = tk.Label(window, text="Spins won: 0", fg="white", bg="black", font=("Arial", 28))
@@ -14,6 +19,8 @@ def createWindow():
     balanceLabel.place(x=100, y=100)
     spinsLabel.place(x=100, y=180)
     updateStats() 
+    time.sleep(1)
+    checkForUpdates()
     window.mainloop()
 
 def updateStats():
@@ -25,10 +32,19 @@ def updateStats():
     balanceLabel.config(text="Total earned: " + str(earned) + "€")
     spinsLabel.config(text="Spins won: " + str(spins))
 
+def checkForUpdates():
+    print("Checking for updates")
+    stats = files_tools.retrieveListFromFile(stats_path)
+    updateNextMove(stats[0])
+    if stats[1] == "True":
+        updateStats()
+        files_tools.saveListToFile(stats_path, ["-", "False"])
+    window.after(5000, checkForUpdates)
+
 def updateNextMove(nextMove):
     nextMoveLabel.config(text="Next move: " + nextMove)
 
 def main():
     if __name__ =='__main__':   
         createWindow()
-#main()
+main()

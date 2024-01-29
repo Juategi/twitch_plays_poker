@@ -19,6 +19,7 @@ test_image = '../assets/test.png'
 close_image = '../assets/close.png'
 in_game_image = '../assets/in_game.png'
 participants_path = '../saves/participants.txt'
+stats_path = '../saves/stats.txt'
 
 
 class TppBot:
@@ -188,7 +189,7 @@ class TppBot:
 	def startBot(self):			
 		twitch_chat.joinchat()
 		self.clearCommands()
-		pyautogui.FAILSAFE = False
+		find_image_tools.moveMouseToCenter()
 		while True:
 			if find_image_tools.findImage(in_game_image):
 				self.playGame()
@@ -219,7 +220,9 @@ class TppBot:
 		find_image_tools.findAndMoveToImage(confirm_image, 0.8, False)
 		time.sleep(2)
 		self.playGame()
-		ui_stats.updateStats()
+		time.sleep(2)
+		#we use this file to pass information to the ui thread, reload all data
+		files_tools.saveListToFile(stats_path, ["-", "True"])
 
 	def playGame(self):
 		while True:
@@ -235,7 +238,8 @@ class TppBot:
 				print("Our turn")
 				self.getMessages()
 				command = self.calculateVotation()
-				ui_stats.updateNextMove(command)
+				#we use this file to pass information to the ui thread, the next command
+				files_tools.saveListToFile(stats_path, [command, "False"])
 				self.executeCommand(command)
 				self.clearCommands()
 				print("Turn ended")
