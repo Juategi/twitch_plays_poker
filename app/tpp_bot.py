@@ -224,6 +224,7 @@ class TppBot:
 			#game ended
 			if find_image_tools.findImage(close_image):
 				print("Game ended")
+				get_stats.isSpinWon()
 				find_image_tools.findAndMoveToImage(close_image)
 				break
 			#our turn

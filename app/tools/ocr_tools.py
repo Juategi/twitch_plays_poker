@@ -5,14 +5,14 @@ from PIL import Image
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
-def captureWindowScreenshot(window_title_substring):
+def captureWindowScreenshot(window_title_substring, width=700, height=700):
+    
     window = getWindow(window_title_substring)
-
     # Activate the window
     window.activate()
 
     # Resize the window to a constant size
-    window.resizeTo(700, 700)
+    window.resizeTo(width, height)
 
     # Wait for a moment to allow the window to adjust
     pyautogui.PAUSE = 1

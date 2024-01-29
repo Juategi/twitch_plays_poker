@@ -1,4 +1,4 @@
-from get_stats import getBalance
+import get_stats as gs
 from tpp_bot import TppBot
 
 
@@ -36,4 +36,4 @@ def test_votation():
     
 
 if __name__ == "__main__":
-    print(getBalance())
+    gs.isSpinWon()
