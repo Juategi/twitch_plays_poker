@@ -1,6 +1,6 @@
-import app.tools.ocr_tools as ocr_tools
+import tools.ocr_tools as ocr_tools
 import time
-import app.tools.find_image_tools as find_image_tools
+import tools.find_image_tools as find_image_tools
 
 cashier_image = 'assets/cashier.png'
 

@@ -2,18 +2,19 @@ import time
 import pyautogui
 import time
 import random
-import app.tools.find_image_tools as find_image_tools
+import tools.find_image_tools as find_image_tools
 import get_stats
 import twitch_chat
+import tools.files_tools as files_tools
 
 
-mode_image = 'assets/mode.png'
-turn_image = 'assets/your_turn.png'
-play_image = 'assets/play_now.png'
-confirm_image = 'assets/confirm.png'
-test_image = 'assets/test.png'
-close_image = 'assets/close.png'
-in_game_image = 'assets/in_game.png'
+mode_image = '../assets/mode.png'
+turn_image = '../assets/your_turn.png'
+play_image = '../assets/play_now.png'
+confirm_image = '../assets/confirm.png'
+test_image = '../assets/test.png'
+close_image = '../assets/close.png'
+in_game_image = '../assets/in_game.png'
 
 
 class TppBot:
@@ -21,6 +22,7 @@ class TppBot:
 	def __init__(self):
 		self.users = []
 		self.messages = {}
+		self.participants = files_tools.retrieve_list_from_file('../saves/participants.txt')
 
 	def getUser(self, line):
 		colons = line.count(":")
@@ -188,7 +190,8 @@ class TppBot:
 			else:
 				self.awaitStartCommand()
 				time.sleep(random.randint(11, 19))
-				self.startGame()						
+				self.startGame()
+				self.saveParticipants()						
 
 	
 	def awaitStartCommand(self):
@@ -239,8 +242,16 @@ class TppBot:
 					message = self.saveMessage(line)		
 					if message != "":
 						self.users.append(user)		
+						self.saveParticipant(user)
 						print(user + " : " + message)	
 
+	def saveParticipant(self, user):
+		if user not in self.participants:
+			self.participants.append(user)
+	
+	def saveParticipants(self):
+		files_tools.save_list_to_file('../saves/participants.txt', self.participants)
+			
 	def clearCommands(self):
 		self.messages['!check'] = 0
 		self.messages['!fold'] = 0
