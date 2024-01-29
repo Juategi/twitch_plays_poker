@@ -5,7 +5,7 @@ from PIL import Image
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
-def capture_window_screenshot(window_title_substring):
+def captureWindowScreenshot(window_title_substring):
     window = getWindow(window_title_substring)
 
     # Activate the window
@@ -49,7 +49,7 @@ def getWindow(window_title_substring):
     return window
 
 
-def extract_text_from_image(image_path, region):
+def extractTextFromImage(image_path, region):
     # Open the image using PIL
     image = Image.open(image_path)
 

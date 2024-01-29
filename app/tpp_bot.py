@@ -22,7 +22,7 @@ class TppBot:
 	def __init__(self):
 		self.users = []
 		self.messages = {}
-		self.participants = files_tools.retrieve_list_from_file('../saves/participants.txt')
+		self.participants = files_tools.retrieveListFromFile('../saves/participants.txt')
 
 	def getUser(self, line):
 		colons = line.count(":")
@@ -185,7 +185,7 @@ class TppBot:
 		twitch_chat.joinchat()
 		self.clearCommands()
 		while True:
-			if find_image_tools.find_image(in_game_image):
+			if find_image_tools.findImage(in_game_image):
 				self.playGame()
 			else:
 				self.awaitStartCommand()
@@ -207,11 +207,11 @@ class TppBot:
 	def startGame(self):
 		print("Starting game...")
 		time.sleep(1)
-		find_image_tools.find_and_click_image(mode_image)
+		find_image_tools.findAndMoveToImage(mode_image)
 		time.sleep(1)
-		find_image_tools.find_and_click_image(play_image)
+		find_image_tools.findAndMoveToImage(play_image)
 		time.sleep(1)
-		find_image_tools.find_and_move_image(confirm_image)
+		find_image_tools.findAndMoveToImage(confirm_image, 0.8, False)
 		time.sleep(2)
 		self.playGame()
 
@@ -219,12 +219,12 @@ class TppBot:
 		while True:
 			print("Playing game...")
 			#game ended
-			if find_image_tools.find_image(close_image):
+			if find_image_tools.findImage(close_image):
 				print("Game ended")
-				find_image_tools.find_and_click_image(close_image)
+				find_image_tools.findAndMoveToImage(close_image)
 				break
 			#our turn
-			elif find_image_tools.find_image(turn_image):
+			elif find_image_tools.findImage(turn_image):
 				print("Our turn")
 				self.getMessages()
 				self.executeCommand(self.votation())
@@ -250,7 +250,7 @@ class TppBot:
 			self.participants.append(user)
 	
 	def saveParticipants(self):
-		files_tools.save_list_to_file('../saves/participants.txt', self.participants)
+		files_tools.saveListToFile('../saves/participants.txt', self.participants)
 			
 	def clearCommands(self):
 		self.messages['!check'] = 0
