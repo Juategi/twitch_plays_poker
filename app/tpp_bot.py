@@ -221,7 +221,7 @@ class TppBot:
 		time.sleep(1)
 		find_image_tools.findAndMoveToImage(play_image)
 		time.sleep(1)
-		find_image_tools.findAndMoveToImage(confirm_image, 0.8, False)
+		find_image_tools.findAndMoveToImage(confirm_image)
 		time.sleep(2)
 		self.playGame()
 		time.sleep(2)
