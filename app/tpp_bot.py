@@ -194,10 +194,13 @@ class TppBot:
 			if find_image_tools.findImage(in_game_image):
 				self.playGame()
 			else:
+				#TODO: change in production
 				#self.awaitStartCommand()
 				#time.sleep(random.randint(11, 19))
 				self.startGame()
-				self.persistParticipants()						
+				self.persistParticipants()		
+			#we use this file to pass information to the ui thread, reload all data
+			files_tools.saveListToFile(stats_path, ["-", "True"])				
 
 	
 	def awaitStartCommand(self):
@@ -212,6 +215,7 @@ class TppBot:
 		
 	def startGame(self):
 		print("Starting game...")
+		twitch_chat.sendMessage("Starting game...")
 		time.sleep(1)
 		find_image_tools.findAndMoveToImage(mode_image)
 		time.sleep(1)
@@ -221,8 +225,6 @@ class TppBot:
 		time.sleep(2)
 		self.playGame()
 		time.sleep(2)
-		#we use this file to pass information to the ui thread, reload all data
-		files_tools.saveListToFile(stats_path, ["-", "True"])
 
 	def playGame(self):
 		while True:
@@ -231,6 +233,9 @@ class TppBot:
 			if find_image_tools.findImage(close_image):
 				print("Game ended")
 				get_stats.isSpinWon()
+				#it fails because in the previous function the window is focused, 
+				#and the mouse moves to the edge so the next function fails
+				pyautogui.FAILSAFE = False
 				find_image_tools.findAndMoveToImage(close_image)
 				break
 			#our turn

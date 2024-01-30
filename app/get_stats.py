@@ -44,6 +44,7 @@ def getSpinsWon():
     return files_tools.retrieveIntFromFile(spins_path)
 
 def isSpinWon():
+    #TODO: cambiar en produccion
     window_title_to_capture = "Spin"
     screenshot_path = ocr_tools.captureWindowScreenshot(window_title_to_capture, 1200, 1200)
     if screenshot_path:
@@ -55,6 +56,8 @@ def isSpinWon():
         extracted_text_lines = extracted_text.split('\n')
         for line in extracted_text_lines:
             if "PRIZE" in line:
+                print("Spin won!")
                 spinsWon = getSpinsWon()
                 files_tools.saveIntToFile(spins_path, spinsWon + 1)
+        print("Spin lost!")
                 
