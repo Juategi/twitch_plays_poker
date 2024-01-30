@@ -9,7 +9,7 @@ stats_path = '../saves/stats.txt'
 window = tk.Tk()
 balanceLabel = tk.Label(window, text="Total earned: 0€", fg="white", bg="black", font=("Arial", 28))
 spinsLabel = tk.Label(window, text="Spins won: 0", fg="white", bg="black", font=("Arial", 28))
-nextMoveLabel = tk.Label(window, text="Next move: ", fg="white", bg="black", font=("Arial", 28))
+nextMoveLabel = tk.Label(window, text="Last move: ", fg="white", bg="black", font=("Arial", 28))
 startLabel= tk.Label(window, text="write !start in chat to start next game", fg="white", bg="black", font=("Arial", 36))
 
 def createWindow():
@@ -41,10 +41,10 @@ def checkForUpdates():
     if stats[1] == "True":
         updateStats()
         files_tools.saveListToFile(stats_path, ["-", "False"])
-    window.after(5000, checkForUpdates)
+    window.after(2000, checkForUpdates)
 
 def updateNextMove(nextMove):
-    nextMoveLabel.config(text="Next move: " + nextMove)
+    nextMoveLabel.config(text="Last move: " + nextMove)
 
 def main():
     if __name__ =='__main__':   
