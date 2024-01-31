@@ -255,7 +255,6 @@ class TppBot:
 
 	def getMessages(self):
 		start_time = time.time()
-		#TODO
 		#se retrasa porque si han pasado 6 segundos y quedan 4, el time del socket
 		#sigue siendo el turn_timeout, debería ser el tiempo que queda
 		#otra forma de hacerlo: lanzar un thread que se encargue de recibir mensajes,

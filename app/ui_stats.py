@@ -1,4 +1,5 @@
 import tkinter as tk
+import pyautogui
 import get_stats as stats
 import config.config as config
 import tools.files_tools as files_tools
@@ -39,7 +40,7 @@ def checkForUpdates():
     #updateNextMove(stats[0])
     if stats[1] == "True":
         updateStats()
-        #files_tools.saveListToFile(stats_path, ["-", "False"])
+        files_tools.saveListToFile(stats_path, ["-", "False"])
     window.after(5000, checkForUpdates)
 
 def updateNextMove(nextMove):
