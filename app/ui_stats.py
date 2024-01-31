@@ -16,7 +16,7 @@ def createWindow():
     window.title("Stats")
     window.configure(bg="black")
     window.geometry("1600x1200+200+200") 
-    nextMoveLabel.place(x=1200, y=950)
+    #nextMoveLabel.place(x=1200, y=950)
     balanceLabel.place(x=1200, y=1010)
     spinsLabel.place(x=1200, y=1070)
     startLabel.place(x=50, y=600)
@@ -35,13 +35,12 @@ def updateStats():
     spinsLabel.config(text="Spins won: " + str(spins))
 
 def checkForUpdates():
-    print("Checking for updates")
     stats = files_tools.retrieveListFromFile(stats_path)
-    updateNextMove(stats[0])
+    #updateNextMove(stats[0])
     if stats[1] == "True":
         updateStats()
-        files_tools.saveListToFile(stats_path, ["-", "False"])
-    window.after(2000, checkForUpdates)
+        #files_tools.saveListToFile(stats_path, ["-", "False"])
+    window.after(5000, checkForUpdates)
 
 def updateNextMove(nextMove):
     nextMoveLabel.config(text="Last move: " + nextMove)

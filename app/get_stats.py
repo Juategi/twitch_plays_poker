@@ -14,6 +14,7 @@ def getBalance():
     while balance == "-1":
         time.sleep(1)
         balance = getTextFromCashier()
+    time.sleep(1)
     closeCashier()
     time.sleep(1)
     return balance
@@ -44,7 +45,6 @@ def getSpinsWon():
     return files_tools.retrieveIntFromFile(spins_path)
 
 def isSpinWon():
-    #TODO: cambiar en produccion
     window_title_to_capture = "Spin"
     screenshot_path = ocr_tools.captureWindowScreenshot(window_title_to_capture, 1200, 1200)
     if screenshot_path:

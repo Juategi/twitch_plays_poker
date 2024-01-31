@@ -32,6 +32,9 @@ def joinchat():
             Loading = loadingComplete(line)
     irc.send("CAP REQ :twitch.tv/tags\r\n".encode())
 
+def setTimeout(timeout):
+    irc.settimeout(timeout)
+
 def loadingComplete(line):
     if("End of /NAMES list" in line):
         print("TwitchBot has joined " + CHANNEL + "'s Channel!")
@@ -60,3 +63,24 @@ def getMessages():
                 yield line																
             except Exception as e:
                 print("Error: " + str(e))
+
+
+def getMessagesThread(messagesBuffer, stopThread):
+    while not stopThread():
+        try:
+            readbuffer = irc.recv(1024).decode()
+        except:
+            readbuffer = ""
+        for line in readbuffer.split("\r\n"):
+            if line == "":
+                continue
+            if "PING :tmi.twitch.tv" in line:
+                msgg = "PONG :tmi.twitch.tv\r\n".encode()
+                irc.send(msgg)
+                continue
+            else:
+                try:
+                    messagesBuffer.append(line)															
+                except Exception as e:
+                    print("Error: " + str(e))
+    print("Thread stopped")

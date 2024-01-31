@@ -2,6 +2,7 @@ import time
 import pyautogui
 import time
 import random
+import threading
 import tools.find_image_tools as find_image_tools
 import get_stats
 import ui_stats
@@ -137,6 +138,8 @@ class TppBot:
 		return command 
 
 	def executeCommand(self, command):
+		#TODO: change in production
+		
 		if command == '!check':
 			pyautogui.press('c')
 		elif command == '!fold':
@@ -193,9 +196,9 @@ class TppBot:
 		while True:
 			if find_image_tools.findImage(in_game_image):
 				self.playGame()
-			else:
+			else:				
+				self.awaitStartCommand()
 				#TODO: change in production
-				#self.awaitStartCommand()
 				#time.sleep(random.randint(11, 19))
 				self.startGame()
 				self.persistParticipants()		
@@ -241,10 +244,10 @@ class TppBot:
 			#our turn
 			elif find_image_tools.findImage(turn_image):
 				print("Our turn")
-				self.getMessages()
+				self.getMessagesThread()
 				command = self.calculateVotation()
 				#we use this file to pass information to the ui thread, the next command
-				files_tools.saveListToFile(stats_path, [command, "False"])
+				#files_tools.saveListToFile(stats_path, [command, "False"])
 				self.executeCommand(command)
 				self.clearCommands()
 				print("Turn ended")
@@ -252,8 +255,16 @@ class TppBot:
 
 	def getMessages(self):
 		start_time = time.time()
+		#TODO
+		#se retrasa porque si han pasado 6 segundos y quedan 4, el time del socket
+		#sigue siendo el turn_timeout, debería ser el tiempo que queda
+		#otra forma de hacerlo: lanzar un thread que se encargue de recibir mensajes,
+		#y que cuando se acabe el tiempo, se cierre el socket
+		#en le principal, se espera a que pase el tiempo,
+		#y calculas con los comandos recibidos
 		while time.time() - start_time < config.turn_timeout:
 			print("Getting messages...")
+			twitch_chat.setTimeout(config.turn_timeout - (time.time() - start_time))
 			for line in twitch_chat.getMessages():
 				user = self.getUser(line)																																	
 				if(user not in self.users):
@@ -262,6 +273,23 @@ class TppBot:
 						self.users.append(user)		
 						self.saveParticipant(user)
 						print(user + " : " + message)	
+
+	def getMessagesThread(self):
+		start_time = time.time()
+		messagesBuffer = []
+		stopThread = False
+		thread = threading.Thread(target= twitch_chat.getMessagesThread, args=(messagesBuffer, lambda: stopThread))
+		thread.start()
+		while time.time() - start_time < config.turn_timeout:
+			pass
+		stopThread = True
+		for line in messagesBuffer:
+			user = self.getUser(line)																																	
+			if(user not in self.users):
+				message = self.saveMessage(line)		
+				if message != "":
+					self.users.append(user)		
+					self.saveParticipant(user)
 
 	def saveParticipant(self, user):
 		if user not in self.participants:
