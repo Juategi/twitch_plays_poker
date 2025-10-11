@@ -100,11 +100,11 @@ class TppBot:
 
 	def calculateVotation(self, ponderation=1.3):
 		print("Votation...")
-		max = self.messages['!check']
-		maxCommand = '!check'
-		if(self.messages['!fold'] > max):
-			max = self.messages['!fold']
-			maxCommand = '!fold'
+		max = self.messages['!fold']
+		maxCommand = '!fold'
+		if(self.messages['!check'] > max):
+			max = self.messages['!check']
+			maxCommand = '!check'
 		if(self.messages['!call'] > max):
 			max = self.messages['!call']
 			maxCommand = '!call'
