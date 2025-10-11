@@ -1,6 +1,9 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:twitch_poker_game/engine/engine.dart';
+import 'package:twitch_poker_game/engine/models/card.dart';
+import 'package:twitch_poker_game/engine/models/game_state.dart';
+import 'package:twitch_poker_game/engine/models/player.dart';
 
 void main() {
   runApp(const PokerApp());
@@ -42,7 +45,7 @@ class _PokerHomeState extends State<PokerHome> {
       mcSimulations: 1000,
     );
     controller.notifier.value = controller.notifier.value.copyWith(
-      stage: 'idle',
+      stage: GameStage.idle,
     );
   }
 
@@ -66,7 +69,7 @@ class _PokerHomeState extends State<PokerHome> {
                     child: Column(
                       children: [
                         Text(
-                          'Stage: ${gs.stage.toUpperCase()}   Pot: ${gs.pot}   Dealer: ${gs.dealerIndex}',
+                          'Stage: ${gs.stage}   Pot: ${gs.pot}   Dealer: ${gs.dealerIndex}',
                         ),
                         const SizedBox(height: 8),
                         Wrap(
@@ -134,6 +137,13 @@ class _PokerHomeState extends State<PokerHome> {
                                         onPressed: () =>
                                             controller.humanAllIn(p),
                                         child: const Text('All-in'),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: p.hole
+                                            .map((c) => _cardWidget(c))
+                                            .toList(),
                                       ),
                                     ],
                                   )
