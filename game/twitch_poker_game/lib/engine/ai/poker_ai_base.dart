@@ -12,5 +12,6 @@ abstract class PokerAIBase {
     required String stage,
     required int raisesSoFar,
     required int maxRaisesPerRound,
+    required int potSize,
   });
 }

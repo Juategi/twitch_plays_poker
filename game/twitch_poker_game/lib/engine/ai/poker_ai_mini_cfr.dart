@@ -24,6 +24,7 @@ class PokerAIMiniCFR implements PokerAIBase {
     required String stage,
     required int raisesSoFar,
     required int maxRaisesPerRound,
+    required int potSize,
   }) async {
     //await Future.delayed(Duration(seconds: 2)); // delay IA
 
@@ -44,22 +45,30 @@ class PokerAIMiniCFR implements PokerAIBase {
       final stats = opponentStats[opp] ?? OpponentStats();
       adjustment += stats.getAdjustment();
     }
-
     double finalEquity = (baseEquity + adjustment).clamp(0.0, 1.0);
     final canRaise = raisesSoFar < maxRaisesPerRound;
+
+    // 💰 Pot odds (si el jugador necesita pagar para igualar)
+    int callAmount = currentBet - player.contributed;
+    double potOdds = callAmount > 0 ? callAmount / (potSize + callAmount) : 0.0;
+
     // 4️⃣ Decisión probabilística
     final rnd = Random().nextDouble();
+
     // ✅ Bluff dinámico según estilo y etapa
     final bluffChance = _bluffChance(stage);
-    if (rnd < bluffChance && canRaise) {
-      return "raise";
-    }
-    if (finalEquity < 0.4) return "fold";
-    if (finalEquity < 0.65) return "call";
-    if (canRaise && rnd < 0.05) return "raise"; // bluff ocasional
-    if (canRaise) {
-      return "raise";
-    }
+
+    // 1️⃣ Evaluar equity vs pot odds primero (decisión racional base)
+    if (finalEquity < potOdds) return "fold";
+    if (finalEquity < potOdds + 0.15) return "call";
+
+    // 2️⃣ Si tiene buena equity y puede subir, valorar raise (apuesta por valor)
+    if (canRaise && finalEquity > 0.7) return "raise";
+
+    // 3️⃣ Si la equity es media pero hay chance de bluff, a veces raise
+    if (rnd < bluffChance && canRaise && finalEquity > 0.4) return "raise";
+
+    // 4️⃣ Si nada anterior aplica, por defecto call
     return "call";
   }
 
@@ -68,13 +77,13 @@ class PokerAIMiniCFR implements PokerAIBase {
     double base;
     switch (style) {
       case PlayerStyle.tight:
-        base = 0.03;
+        base = 0.1;
         break;
       case PlayerStyle.loose:
-        base = 0.10;
+        base = 0.15;
         break;
       case PlayerStyle.aggressive:
-        base = 0.15;
+        base = 0.25;
         break;
     }
 

@@ -2,7 +2,6 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
-import 'package:twitch_poker_game/engine/ai/mc_request.dart';
 import 'package:twitch_poker_game/engine/models/card.dart';
 import 'package:twitch_poker_game/engine/models/deck.dart';
 import 'package:twitch_poker_game/engine/models/game_state.dart';
@@ -208,22 +207,13 @@ class GameController {
               stage: stage,
               raisesSoFar: raisesSoFar,
               maxRaisesPerRound: maxRaisesPerRound,
+              potSize: state.pot,
             );
 
             _applyAction(
               p,
               action,
             ); // tu función actual que aplica fold/call/raise
-          } else {
-            await _aiActForPlayer(
-              p,
-              toCall,
-              currentBet,
-              minRaise,
-              stage,
-              raisesSoFar,
-              maxRaisesPerRound,
-            );
           }
           // recalc currentBet and update raises counter if it increased
           final newBet = players
@@ -290,123 +280,6 @@ class GameController {
         p.contributed += pay;
         if (p.stack == 0) p.allIn = true;
         break;
-    }
-  }
-
-  Future<void> _aiActForPlayer(
-    PlayerModel p,
-    int toCall,
-    int currentBet,
-    int minRaise,
-    String stage,
-    int raisesSoFar,
-    int maxRaisesPerRound,
-  ) async {
-    // Prepare deck rest
-    final used = <CardModel>{..._community};
-    for (var pl in players) used.addAll(pl.hole);
-    final deckRest = Deck.full().without(used.toList()).cards;
-
-    final opponents = players.where((pl) => pl != p && !pl.folded).length - 1;
-    final req = MCRequest(
-      List<CardModel>.from(p.hole),
-      List<CardModel>.from(_community),
-      max(0, opponents),
-      mcSimulations,
-      deckRest,
-    );
-
-    // Run compute (isolate)
-    final equity = await compute<MCRequest, double>(mcWorker, req);
-
-    // Pot odds
-    final pot = players.fold<int>(0, (s, pl) => s + pl.contributed);
-    final potOdds = toCall == 0 ? 0.0 : toCall / (pot + toCall);
-
-    // Stage-aware aggression modifier
-    double stageAgg;
-    switch (stage) {
-      case 'preflop':
-        stageAgg = 0.6;
-        break;
-      case 'flop':
-        stageAgg = 1.0;
-        break;
-      case 'turn':
-        stageAgg = 1.1;
-        break;
-      case 'river':
-        stageAgg = 1.2;
-        break;
-      default:
-        stageAgg = 1.0;
-    }
-
-    // Add slight random jitter to equity so AIs don't mirror each other exactly
-    final rnd = Random();
-    final jitter = (rnd.nextDouble() * 0.06) - 0.03; // ±3%
-    final adjEquity = (equity + jitter).clamp(0.0, 1.0);
-
-    // Decision thresholds (equilibrado) and respect max raises
-    stageAgg = stageAgg * p.aggressiveness;
-    final foldThresh = (potOdds * 0.9) / stageAgg;
-    final callThresh = (potOdds * 1.1) / stageAgg;
-    final raiseThresh = (stage == 'preflop') ? 0.65 : 0.45 * stageAgg;
-
-    // If we already hit raise cap, disallow further raises and prefer call/fold
-    final canRaise = raisesSoFar < maxRaisesPerRound;
-
-    if (adjEquity < foldThresh) {
-      // fold
-      p.folded = true;
-      return;
-    }
-
-    if (adjEquity < callThresh) {
-      // call (or check if toCall==0)
-      if (toCall == 0) {
-        // check - do nothing
-        return;
-      } else {
-        final pay = min(p.stack, toCall);
-        p.stack -= pay;
-        p.contributed += pay;
-        if (p.stack == 0) p.allIn = true;
-        return;
-      }
-    }
-
-    // adjEquity >= callThresh: consider raise if allowed
-    if (canRaise && adjEquity >= raiseThresh) {
-      // perform raise but ensure it actually increases the currentBet
-      final desiredRaise = max(toCall + minRaise, (pot * 0.25).toInt());
-      final pay = min(p.stack, desiredRaise);
-      final newContrib = p.contributed + pay;
-      if (newContrib > currentBet) {
-        p.stack -= pay;
-        p.contributed += pay;
-        if (p.stack == 0) p.allIn = true;
-        return;
-      } else {
-        // raise did not increase currentBet (possible when other players already higher) -> act as call
-        final callPay = min(p.stack, toCall);
-        p.stack -= callPay;
-        p.contributed += callPay;
-        if (p.stack == 0) p.allIn = true;
-        return;
-      }
-    } else {
-      // either not allowed to raise or equity not enough => call or check
-      if (toCall == 0) {
-        // check
-        return;
-      } else {
-        final pay = min(p.stack, toCall);
-        p.stack -= pay;
-        p.contributed += pay;
-        if (p.stack == 0) p.allIn = true;
-        return;
-      }
     }
   }
 
