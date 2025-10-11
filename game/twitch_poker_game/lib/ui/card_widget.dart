@@ -8,10 +8,12 @@ class CardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 100,
+    return Container(
+      color: Colors.green,
+      width: 223 / 3,
+      height: 324 / 3,
       child: Center(
-        child: SvgPicture.asset(card.getAssetPath(), fit: BoxFit.fitWidth),
+        child: SvgPicture.asset(card.getAssetPath(), fit: BoxFit.fill),
       ),
     );
   }

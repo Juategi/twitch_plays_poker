@@ -100,63 +100,68 @@ class _PokerHomeState extends State<PokerHome> {
                     children: gs.players.asMap().entries.map((e) {
                       final idx = e.key;
                       final p = e.value;
-                      return ListTile(
-                        leading: CircleAvatar(
-                          child: Text(p.isHuman ? 'Y' : p.id.split('_').last),
-                          backgroundColor: controller.currentTurnIndex == idx
-                              ? Colors.green
-                              : null,
-                        ),
-                        title: Text('${p.id} — stack ${p.stack}'),
-                        subtitle: Text(
-                          'contrib ${p.contributed} ${p.folded ? "(folded)" : ""} ${p.allIn ? "(all-in)" : ""}',
-                        ),
-                        trailing: p.isHuman
-                            ? Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  ElevatedButton(
-                                    onPressed: waitingHuman
-                                        ? () => controller.humanFold(idx)
-                                        : null,
-                                    child: const Text('Fold'),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  ElevatedButton(
-                                    onPressed: waitingHuman
-                                        ? () => controller.humanCheckOrCall(idx)
-                                        : null,
-                                    child: const Text('Call/Check'),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  ElevatedButton(
-                                    onPressed: waitingHuman
-                                        ? () => _onRaisePressed(idx)
-                                        : null,
-                                    child: const Text('Raise'),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  ElevatedButton(
-                                    onPressed: waitingHuman
-                                        ? () => controller.humanAllIn(idx)
-                                        : null,
-                                    child: const Text('All-in'),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: p.hole
-                                        .map((c) => CardWidget(card: c))
-                                        .toList(),
-                                  ),
-                                ],
-                              )
-                            : Row(
+                      return Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: controller.currentTurnIndex == idx
+                                ? Colors.green
+                                : null,
+                            child: Text(p.isHuman ? 'Y' : p.id.split('_').last),
+                          ),
+                          Column(
+                            children: [
+                              Text('${p.id} — stack ${p.stack}'),
+                              Text(
+                                'contrib ${p.contributed} ${p.folded ? "(folded)" : ""} ${p.allIn ? "(all-in)" : ""}',
+                              ),
+                            ],
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (p.isHuman)
+                                Row(
+                                  children: [
+                                    ElevatedButton(
+                                      onPressed: waitingHuman
+                                          ? () => controller.humanFold(idx)
+                                          : null,
+                                      child: const Text('Fold'),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    ElevatedButton(
+                                      onPressed: waitingHuman
+                                          ? () =>
+                                                controller.humanCheckOrCall(idx)
+                                          : null,
+                                      child: const Text('Call/Check'),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    ElevatedButton(
+                                      onPressed: waitingHuman
+                                          ? () => _onRaisePressed(idx)
+                                          : null,
+                                      child: const Text('Raise'),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    ElevatedButton(
+                                      onPressed: waitingHuman
+                                          ? () => controller.humanAllIn(idx)
+                                          : null,
+                                      child: const Text('All-in'),
+                                    ),
+                                  ],
+                                ),
+
+                              Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: p.hole
                                     .map((c) => CardWidget(card: c))
                                     .toList(),
                               ),
+                            ],
+                          ),
+                        ],
                       );
                     }).toList(),
                   ),
