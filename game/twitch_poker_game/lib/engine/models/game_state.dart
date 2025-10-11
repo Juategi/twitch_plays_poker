@@ -1,16 +1,18 @@
 import 'package:twitch_poker_game/engine/models/card.dart';
-import 'package:twitch_poker_game/engine/models/player';
+import 'package:twitch_poker_game/engine/models/player.dart';
 
 enum GameStage { idle, preflop, flop, turn, river, showdown }
+
+enum WaitReason { none, waitingForHuman }
 
 class GameState {
   final List<PlayerModel> players;
   final List<CardModel> community;
   final int pot;
   final int dealerIndex;
-  final GameStage stage;
-  final bool aiBusy;
-  final PlayerModel? currentPlayer;
+  final String stage; // idle, preflop, flop, turn, river, showdown
+  final WaitReason waitReason;
+  final int waitingPlayerIndex; // which player index is awaited (-1 if none)
 
   GameState({
     required this.players,
@@ -18,8 +20,8 @@ class GameState {
     required this.pot,
     required this.dealerIndex,
     required this.stage,
-    this.aiBusy = false,
-    this.currentPlayer,
+    this.waitReason = WaitReason.none,
+    this.waitingPlayerIndex = -1,
   });
 
   GameState copyWith({
@@ -27,9 +29,9 @@ class GameState {
     List<CardModel>? community,
     int? pot,
     int? dealerIndex,
-    GameStage? stage,
-    bool? aiBusy,
-    PlayerModel? currentPlayer,
+    String? stage,
+    WaitReason? waitReason,
+    int? waitingPlayerIndex,
   }) {
     return GameState(
       players: players ?? this.players,
@@ -37,8 +39,8 @@ class GameState {
       pot: pot ?? this.pot,
       dealerIndex: dealerIndex ?? this.dealerIndex,
       stage: stage ?? this.stage,
-      aiBusy: aiBusy ?? this.aiBusy,
-      currentPlayer: currentPlayer ?? this.currentPlayer,
+      waitReason: waitReason ?? this.waitReason,
+      waitingPlayerIndex: waitingPlayerIndex ?? this.waitingPlayerIndex,
     );
   }
 }

@@ -1,8 +1,8 @@
 import 'package:twitch_poker_game/engine/models/card.dart';
 
-/// ---------------------------
-/// MODELO DE JUGADOR Y ESTADO
-/// ---------------------------
+/// ----------------------
+/// Player & GameState
+/// ----------------------
 class PlayerModel {
   final String id;
   int stack;
@@ -10,9 +10,10 @@ class PlayerModel {
   bool folded = false;
   bool allIn = false;
   int contributed = 0;
+  double aggressiveness =
+      0.8 + (0.4 * (DateTime.now().microsecond % 1000) / 1000);
   final bool isHuman;
   PlayerModel(this.id, this.stack, {this.isHuman = false});
-
   void clearForNewHand() {
     hole.clear();
     folded = false;

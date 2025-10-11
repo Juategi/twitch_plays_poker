@@ -14,7 +14,7 @@ class PokerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Texas AI (MC) - Flutter Ready',
+      title: 'Texas Auto Flow (Flutter)',
       theme: ThemeData.dark(),
       home: const PokerHome(),
     );
@@ -29,6 +29,8 @@ class PokerHome extends StatefulWidget {
 
 class _PokerHomeState extends State<PokerHome> {
   late GameController controller;
+  bool handRunning = false;
+
   @override
   void initState() {
     super.initState();
@@ -44,24 +46,22 @@ class _PokerHomeState extends State<PokerHome> {
       bigBlind: 20,
       mcSimulations: 1000,
     );
-    controller.notifier.value = controller.notifier.value.copyWith(
-      stage: GameStage.idle,
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Texas Hold\'em — AI MonteCarlo (Flutter)'),
-      ),
+      appBar: AppBar(title: const Text('Texas Hold\'em — Auto Flow (MC AI)')),
       body: Padding(
         padding: const EdgeInsets.all(12.0),
         child: ValueListenableBuilder<GameState>(
           valueListenable: controller.notifier,
           builder: (context, gs, _) {
+            final humanIdx = controller.humanIndex();
+            final waitingHuman =
+                gs.waitReason == WaitReason.waitingForHuman &&
+                gs.waitingPlayerIndex == humanIdx;
             return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Card(
                   child: Padding(
@@ -78,17 +78,11 @@ class _PokerHomeState extends State<PokerHome> {
                               .map((c) => _cardWidget(c))
                               .toList(),
                         ),
-                        if (gs.aiBusy)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 8.0),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                CircularProgressIndicator(),
-                                SizedBox(width: 8),
-                                Text('AI thinking...'),
-                              ],
-                            ),
+                        const SizedBox(height: 8),
+                        if (gs.waitReason == WaitReason.waitingForHuman)
+                          Text(
+                            'Waiting for human action...',
+                            style: const TextStyle(color: Colors.amber),
                           ),
                       ],
                     ),
@@ -97,96 +91,90 @@ class _PokerHomeState extends State<PokerHome> {
                 const SizedBox(height: 12),
                 Expanded(
                   child: ListView(
-                    children: gs.players
-                        .map(
-                          (p) => ListTile(
-                            leading: CircleAvatar(
-                              child: Text(
-                                p.id.contains('You')
-                                    ? 'Y'
-                                    : p.id.split('_').last,
-                              ),
-                            ),
-                            title: Text('${p.id} — stack: ${p.stack}'),
-                            subtitle: Text(
-                              'contrib: ${p.contributed} ${p.folded ? "(folded)" : ""} ${p.allIn ? "(all-in)" : ""}',
-                            ),
-                            trailing: p.isHuman
-                                ? Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      ElevatedButton(
-                                        onPressed: () =>
-                                            controller.humanFold(p),
-                                        child: const Text('Fold'),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      ElevatedButton(
-                                        onPressed: () =>
-                                            controller.humanCheck(p),
-                                        child: const Text('Check'),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      ElevatedButton(
-                                        onPressed: () =>
-                                            controller.humanCall(p),
-                                        child: const Text('Call'),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      ElevatedButton(
-                                        onPressed: () =>
-                                            controller.humanAllIn(p),
-                                        child: const Text('All-in'),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: p.hole
-                                            .map((c) => _cardWidget(c))
-                                            .toList(),
-                                      ),
-                                    ],
-                                  )
-                                : Row(
+                    children: gs.players.asMap().entries.map((e) {
+                      final idx = e.key;
+                      final p = e.value;
+                      return ListTile(
+                        leading: CircleAvatar(
+                          child: Text(p.isHuman ? 'Y' : p.id.split('_').last),
+                          backgroundColor: controller.currentTurnIndex == idx
+                              ? Colors.green
+                              : null,
+                        ),
+                        title: Text('${p.id} — stack ${p.stack}'),
+                        subtitle: Text(
+                          'contrib ${p.contributed} ${p.folded ? "(folded)" : ""} ${p.allIn ? "(all-in)" : ""}',
+                        ),
+                        trailing: p.isHuman
+                            ? Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ElevatedButton(
+                                    onPressed: waitingHuman
+                                        ? () => controller.humanFold(idx)
+                                        : null,
+                                    child: const Text('Fold'),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  ElevatedButton(
+                                    onPressed: waitingHuman
+                                        ? () => controller.humanCheckOrCall(idx)
+                                        : null,
+                                    child: const Text('Call/Check'),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  ElevatedButton(
+                                    onPressed: waitingHuman
+                                        ? () => _onRaisePressed(idx)
+                                        : null,
+                                    child: const Text('Raise'),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  ElevatedButton(
+                                    onPressed: waitingHuman
+                                        ? () => controller.humanAllIn(idx)
+                                        : null,
+                                    child: const Text('All-in'),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: p.hole
                                         .map((c) => _cardWidget(c))
                                         .toList(),
                                   ),
-                          ),
-                        )
-                        .toList(),
+                                ],
+                              )
+                            : Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: p.hole
+                                    .map((c) => _cardWidget(c))
+                                    .toList(),
+                              ),
+                      );
+                    }).toList(),
                   ),
                 ),
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
+                Row(
                   children: [
                     ElevatedButton(
-                      onPressed: () => controller.startNewHand(),
-                      child: const Text('Start Hand'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () async {
-                        await controller.requestAIActionsForStage(
-                          controller.state.stage,
-                        );
-                      },
-                      child: const Text('Run AI Actions'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () => controller.advanceStage(),
-                      child: const Text('Advance Stage'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () => controller.rotateDealer(),
-                      child: const Text('Rotate Dealer'),
+                      onPressed: handRunning
+                          ? null
+                          : () async {
+                              handRunning = true;
+                              setState(() {});
+                              await controller.startHandAndAutoFlow();
+                              handRunning = false;
+                              setState(() {});
+                            },
+                      child: const Text('Start Hand (Auto Flow)'),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Workflow: Start Hand → Run AI Actions → Advance Stage (flop/turn/river)',
+                  'The engine runs until it needs YOUR decision; press the action buttons to continue.',
                 ),
               ],
             );
@@ -197,9 +185,8 @@ class _PokerHomeState extends State<PokerHome> {
   }
 
   Widget _cardWidget(CardModel c) {
-    // Aquí mostramos texto por defecto. Para usar imágenes, reemplaza este widget por Image.asset(...)
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(6),
         color: Colors.green[700],
@@ -209,5 +196,35 @@ class _PokerHomeState extends State<PokerHome> {
         style: const TextStyle(fontWeight: FontWeight.bold),
       ),
     );
+  }
+
+  void _onRaisePressed(int humanIndex) async {
+    final input = await showDialog<int>(
+      context: context,
+      builder: (ctx) {
+        final ctrl = TextEditingController(text: '50');
+        return AlertDialog(
+          title: const Text('Raise amount (chips to add)'),
+          content: TextField(
+            controller: ctrl,
+            keyboardType: TextInputType.number,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(null),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () =>
+                  Navigator.of(ctx).pop(int.tryParse(ctrl.text) ?? 0),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+    if (input != null && input > 0) {
+      controller.humanRaise(humanIndex, input);
+    }
   }
 }

@@ -2,62 +2,16 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:twitch_poker_game/engine/mc_request.dart';
 import 'package:twitch_poker_game/engine/models/card.dart';
 import 'package:twitch_poker_game/engine/models/deck.dart';
 import 'package:twitch_poker_game/engine/models/game_state.dart';
 import 'package:twitch_poker_game/engine/models/hand.dart';
-import 'package:twitch_poker_game/engine/models/player';
+import 'package:twitch_poker_game/engine/models/player.dart';
 
-/// ---------------------------
-/// MONTE CARLO (run in isolate via compute)
-/// ---------------------------
-
-/// Payload for isolate
-class _MCRequest {
-  final List<CardModel> myHole;
-  final List<CardModel> community;
-  final int opponents;
-  final int simulations;
-  final List<CardModel> deckRest; // remaining deck
-  _MCRequest(
-    this.myHole,
-    this.community,
-    this.opponents,
-    this.simulations,
-    this.deckRest,
-  );
-}
-
-/// Top-level function for compute()
-Future<double> _mcWorker(_MCRequest req) async {
-  final rnd = Random();
-  int wins = 0;
-  final baseDeck = Deck.cards(List<CardModel>.from(req.deckRest));
-  for (int i = 0; i < req.simulations; i++) {
-    final deck = Deck.clone(baseDeck);
-    deck.shuffle(rnd);
-    final comm = List<CardModel>.from(req.community);
-    while (comm.length < 5) {
-      comm.add(deck.draw());
-    }
-    final myBest = HandEvaluator.bestHandFrom([...req.myHole, ...comm]);
-    bool lost = false;
-    for (int o = 0; o < req.opponents; o++) {
-      final oppHole = [deck.draw(), deck.draw()];
-      final oppBest = HandEvaluator.bestHandFrom([...oppHole, ...comm]);
-      if (oppBest.compareTo(myBest) > 0) {
-        lost = true;
-        break;
-      }
-    }
-    if (!lost) wins++;
-  }
-  return wins / req.simulations;
-}
-
-/// ---------------------------
-/// GAME CONTROLLER (Flutter-ready)
-/// ---------------------------
+/// ----------------------
+/// GameController: automatic flow, pauses for human turn
+/// ----------------------
 class GameController {
   final List<PlayerModel> players;
   final int smallBlind;
@@ -68,19 +22,23 @@ class GameController {
   List<CardModel> _community = [];
   int _dealerIndex = 0;
 
+  // internal completer used to pause until human acts
+  Completer<void>? _humanActionCompleter;
+  int _humanIndexWaiting = -1;
+  int currentTurnIndex = -1; // -1 = nadie, 0..n = jugador activo
+
   GameController({
     required this.players,
     this.smallBlind = 10,
     this.bigBlind = 20,
-    this.mcSimulations = 1000,
+    this.mcSimulations = 2000,
   }) : notifier = ValueNotifier(
          GameState(
            players: players,
            community: [],
            pot: 0,
            dealerIndex: 0,
-           stage: GameStage.idle,
-           currentPlayer: players[3],
+           stage: 'idle',
          ),
        ) {
     _deck = Deck.full();
@@ -88,35 +46,39 @@ class GameController {
 
   GameState get state => notifier.value;
 
-  void _notify({bool aiBusy = false}) {
+  void _notify({
+    WaitReason waitReason = WaitReason.none,
+    int waitingPlayerIndex = -1,
+  }) {
     final pot = players.fold<int>(0, (s, p) => s + p.contributed);
     notifier.value = state.copyWith(
       players: players,
       community: List.unmodifiable(_community),
       pot: pot,
       dealerIndex: _dealerIndex,
-      aiBusy: aiBusy,
-      currentPlayer: state.currentPlayer,
+      waitReason: waitReason,
+      waitingPlayerIndex: waitingPlayerIndex,
     );
   }
 
-  void startNewHand() {
-    _deck = Deck.full();
-    _deck.shuffle();
+  /// Public API: start a full hand and run the automatic flow.
+  /// The future completes when the hand ends (showdown distributed).
+  Future<void> startHandAndAutoFlow() async {
+    _rotateDealer();
+    _deck = Deck.full()..shuffle();
     _community = [];
-    for (var p in players) {
-      p.clearForNewHand();
-    }
-    // deal 2 cards each
+    for (var p in players) p.clearForNewHand();
+
+    // deal
     for (int i = 0; i < 2; i++) {
       for (var p in players) {
-        if (p.stack > 0) {
+        if (p.stack > 0)
           p.hole.add(_deck.draw());
-        } else {
+        else
           p.folded = true;
-        }
       }
     }
+
     // post blinds
     final sbIdx = (_dealerIndex + 1) % players.length;
     final bbIdx = (_dealerIndex + 2) % players.length;
@@ -128,164 +90,337 @@ class GameController {
     final bbAmt = min(bb.stack, bigBlind);
     bb.stack -= bbAmt;
     bb.contributed += bbAmt;
-    notifier.value = GameState(
-      players: players,
-      community: _community,
-      pot: sbAmt + bbAmt,
-      dealerIndex: _dealerIndex,
-      stage: GameStage.preflop,
-      aiBusy: false,
-    );
+
+    _notify();
+    // preflop betting
+    await _bettingRoundAuto(((_dealerIndex + 3) % players.length), 'preflop');
+
+    // if single winner, end early
+    if (_onlyOneRemaining()) {
+      _awardUncontested();
+      _endHand();
+      return;
+    }
+
+    // flop
+    _deck.draw();
+    _community.addAll(_deck.drawMultiple(3));
+    _notify();
+    await _bettingRoundAuto(((_dealerIndex + 1) % players.length), 'flop');
+    if (_onlyOneRemaining()) {
+      _awardUncontested();
+      _endHand();
+      return;
+    }
+
+    // turn
+    _deck.draw();
+    _community.add(_deck.draw());
+    _notify();
+    await _bettingRoundAuto(((_dealerIndex + 1) % players.length), 'turn');
+    if (_onlyOneRemaining()) {
+      _awardUncontested();
+      _endHand();
+      return;
+    }
+
+    // river
+    _deck.draw();
+    _community.add(_deck.draw());
+    _notify();
+    await _bettingRoundAuto(((_dealerIndex + 1) % players.length), 'river');
+    // showdown
+    _handleShowdown();
+    _endHand();
+  }
+
+  bool _onlyOneRemaining() {
+    return players.where((p) => !p.folded).length == 1;
+  }
+
+  void _awardUncontested() {
+    final winner = players.firstWhere((p) => !p.folded);
+    final pot = players.fold<int>(0, (s, p) => s + p.contributed);
+    winner.stack += pot;
+    for (var p in players) p.contributed = 0;
     _notify();
   }
 
-  /// Request AI actions for current stage. This method runs MC per-AI in isolates
-  /// and updates the game state when finished.
-  Future<void> requestAIActionsForStage(GameStage stage) async {
-    _notify(aiBusy: true);
-    final deckTemplate = Deck.full();
-    // prepare deck rest once (remove all used)
-    final used = <CardModel>{};
-    used.addAll(_community);
-    for (var p in players) {
-      used.addAll(p.hole);
-    }
-    final deckRest = deckTemplate.without(used.toList()).cards;
+  void _endHand() {
+    _dealerIndex = (_dealerIndex + 1) % players.length;
+    _notify();
+  }
 
-    final futures = <Future<void>>[];
-    PlayerModel player = state.currentPlayer!;
-    if (player.isHuman || player.folded || player.allIn) return;
-    // compute toCall
-    final currentBet = players
-        .map((pl) => pl.contributed)
+  Future<void> _bettingRoundAuto(int starterIndex, String stage) async {
+    int currentBet = players
+        .map((p) => p.contributed)
         .reduce((a, b) => max(a, b));
-    final toCall = currentBet - player.contributed;
-    final pot = players.fold<int>(0, (s, pl) => s + pl.contributed);
-    final opponents =
-        players.where((pl) => pl != player && !pl.folded).length - 1;
-    final req = _MCRequest(
-      List<CardModel>.from(player.hole),
+    final int minRaise = bigBlind;
+    int idx = starterIndex;
+    int lastToAct = (starterIndex - 1) % players.length;
+    if (lastToAct < 0) lastToAct += players.length;
+
+    bool finished = false;
+    final int maxIterations = 1000;
+    int iterations = 0;
+
+    // NEW: control de raises por ronda
+    int raisesSoFar = 0;
+    const int maxRaisesPerRound =
+        3; // límite razonable para evitar bonkers-raises
+
+    while (!finished && iterations < maxIterations) {
+      iterations++;
+      final p = players[idx];
+
+      if (!p.folded && !p.allIn && p.stack > 0) {
+        final toCall = currentBet - p.contributed;
+        currentTurnIndex = idx;
+        _notify();
+        if (p.isHuman) {
+          // Pause for human action
+          _humanIndexWaiting = idx;
+          _humanActionCompleter = Completer<void>();
+          _notify(
+            waitReason: WaitReason.waitingForHuman,
+            waitingPlayerIndex: idx,
+          );
+          await _humanActionCompleter!.future;
+          _humanActionCompleter = null;
+          _humanIndexWaiting = -1;
+          // recalc currentBet after human action
+          currentBet = players
+              .map((pl) => pl.contributed)
+              .reduce((a, b) => max(a, b));
+          _notify();
+        } else {
+          // AI auto-decide and act, but pass raisesSoFar and max limit
+          final rnd = Random();
+          final delaySeconds = 3 + rnd.nextInt(3); // 3, 4 o 5 segundos
+          await Future.delayed(Duration(seconds: delaySeconds));
+
+          final prevBet = currentBet;
+          await _aiActForPlayer(
+            p,
+            toCall,
+            currentBet,
+            minRaise,
+            stage,
+            raisesSoFar,
+            maxRaisesPerRound,
+          );
+          // recalc currentBet and update raises counter if it increased
+          final newBet = players
+              .map((pl) => pl.contributed)
+              .reduce((a, b) => max(a, b));
+          if (newBet > prevBet) {
+            raisesSoFar++;
+            // update lastToAct so that the raiser gets action cycle respected
+            lastToAct = (idx - 1) % players.length;
+            if (lastToAct < 0) lastToAct += players.length;
+          }
+          currentBet = newBet;
+          _notify();
+        }
+      }
+
+      // termination checks:
+      final activeAlive = players
+          .where((pl) => !pl.folded && !pl.allIn && pl.stack > 0)
+          .toList();
+      if (activeAlive.isEmpty) {
+        finished = true;
+        break;
+      }
+
+      // ✅ Nueva lógica de fin de ronda
+      final everyoneMatched = players
+          .where((pl) => !pl.folded)
+          .every((pl) => pl.allIn || pl.contributed == currentBet);
+
+      // Si todos igualaron pero aún no hemos pasado por el último que puede actuar, seguimos
+      if (everyoneMatched && idx == lastToAct) {
+        finished = true;
+        break;
+      }
+
+      idx = (idx + 1) % players.length;
+    }
+  }
+
+  Future<void> _aiActForPlayer(
+    PlayerModel p,
+    int toCall,
+    int currentBet,
+    int minRaise,
+    String stage,
+    int raisesSoFar,
+    int maxRaisesPerRound,
+  ) async {
+    // Prepare deck rest
+    final used = <CardModel>{..._community};
+    for (var pl in players) used.addAll(pl.hole);
+    final deckRest = Deck.full().without(used.toList()).cards;
+
+    final opponents = players.where((pl) => pl != p && !pl.folded).length - 1;
+    final req = MCRequest(
+      List<CardModel>.from(p.hole),
       List<CardModel>.from(_community),
       max(0, opponents),
       mcSimulations,
       deckRest,
     );
 
-    // For each AI, spawn compute task and then decide action when done
-    final f = compute<_MCRequest, double>(_mcWorker, req).then((eq) {
-      // potOdds
-      final potOdds = toCall == 0 ? 0.0 : toCall / (pot + toCall);
-      // equilibrado heuristics (same idea as CLI version but simpler)
-      if (eq < potOdds * 0.9) {
-        player.folded = true;
-      } else if (eq < potOdds * 1.1) {
-        final pay = min(player.stack, toCall);
-        player.stack -= pay;
-        player.contributed += pay;
-        if (player.stack == 0) player.allIn = true;
+    // Run compute (isolate)
+    final equity = await compute<MCRequest, double>(mcWorker, req);
+
+    // Pot odds
+    final pot = players.fold<int>(0, (s, pl) => s + pl.contributed);
+    final potOdds = toCall == 0 ? 0.0 : toCall / (pot + toCall);
+
+    // Stage-aware aggression modifier
+    double stageAgg;
+    switch (stage) {
+      case 'preflop':
+        stageAgg = 0.6;
+        break;
+      case 'flop':
+        stageAgg = 1.0;
+        break;
+      case 'turn':
+        stageAgg = 1.1;
+        break;
+      case 'river':
+        stageAgg = 1.2;
+        break;
+      default:
+        stageAgg = 1.0;
+    }
+
+    // Add slight random jitter to equity so AIs don't mirror each other exactly
+    final rnd = Random();
+    final jitter = (rnd.nextDouble() * 0.06) - 0.03; // ±3%
+    final adjEquity = (equity + jitter).clamp(0.0, 1.0);
+
+    // Decision thresholds (equilibrado) and respect max raises
+    stageAgg = stageAgg * p.aggressiveness;
+    final foldThresh = (potOdds * 0.9) / stageAgg;
+    final callThresh = (potOdds * 1.1) / stageAgg;
+    final raiseThresh = (stage == 'preflop') ? 0.65 : 0.45 * stageAgg;
+
+    // If we already hit raise cap, disallow further raises and prefer call/fold
+    final canRaise = raisesSoFar < maxRaisesPerRound;
+
+    if (adjEquity < foldThresh) {
+      // fold
+      p.folded = true;
+      return;
+    }
+
+    if (adjEquity < callThresh) {
+      // call (or check if toCall==0)
+      if (toCall == 0) {
+        // check - do nothing
+        return;
       } else {
-        // raise heuristic
-        final raiseAmt = min(
-          player.stack,
-          max(bigBlind, toCall + (pot * 0.25).toInt()),
-        );
-        final pay = min(player.stack, raiseAmt);
-        player.stack -= pay;
-        player.contributed += pay;
-        if (player.stack == 0) player.allIn = true;
+        final pay = min(p.stack, toCall);
+        p.stack -= pay;
+        p.contributed += pay;
+        if (p.stack == 0) p.allIn = true;
+        return;
       }
-      _notify(aiBusy: true);
-    });
-    futures.add(f);
+    }
 
-    await Future.wait(futures);
-    _notify(aiBusy: false);
-  }
-
-  // Human actions (UI will call these)
-  void humanFold(PlayerModel human) {
-    human.folded = true;
-    _notify();
-  }
-
-  void humanCheck(PlayerModel human) {
-    final currentBet = players
-        .map((pl) => pl.contributed)
-        .reduce((a, b) => max(a, b));
-    final toCall = currentBet - human.contributed;
-    if (toCall == 0) {
-      /* check valid */
+    // adjEquity >= callThresh: consider raise if allowed
+    if (canRaise && adjEquity >= raiseThresh) {
+      // perform raise but ensure it actually increases the currentBet
+      final desiredRaise = max(toCall + minRaise, (pot * 0.25).toInt());
+      final pay = min(p.stack, desiredRaise);
+      final newContrib = p.contributed + pay;
+      if (newContrib > currentBet) {
+        p.stack -= pay;
+        p.contributed += pay;
+        if (p.stack == 0) p.allIn = true;
+        return;
+      } else {
+        // raise did not increase currentBet (possible when other players already higher) -> act as call
+        final callPay = min(p.stack, toCall);
+        p.stack -= callPay;
+        p.contributed += callPay;
+        if (p.stack == 0) p.allIn = true;
+        return;
+      }
     } else {
-      final pay = min(human.stack, toCall);
-      human.stack -= pay;
-      human.contributed += pay;
-      if (human.stack == 0) human.allIn = true;
+      // either not allowed to raise or equity not enough => call or check
+      if (toCall == 0) {
+        // check
+        return;
+      } else {
+        final pay = min(p.stack, toCall);
+        p.stack -= pay;
+        p.contributed += pay;
+        if (p.stack == 0) p.allIn = true;
+        return;
+      }
     }
-    _notify();
   }
 
-  void humanCall(PlayerModel human) {
+  // Human action APIs — these update state and complete the waiting completer so flow resumes.
+  // All amounts are "pay now" (for raises, pass desired extra amount)
+  void humanFold(int humanIndex) {
+    final h = players[humanIndex];
+    h.folded = true;
+    _notify();
+    _completeHuman();
+  }
+
+  void humanCheckOrCall(int humanIndex) {
     final currentBet = players
         .map((pl) => pl.contributed)
         .reduce((a, b) => max(a, b));
-    final toCall = currentBet - human.contributed;
-    final pay = min(human.stack, toCall);
-    human.stack -= pay;
-    human.contributed += pay;
-    if (human.stack == 0) human.allIn = true;
+    final h = players[humanIndex];
+    final toCall = currentBet - h.contributed;
+    if (toCall == 0) {
+      // check
+    } else {
+      final pay = min(h.stack, toCall);
+      h.stack -= pay;
+      h.contributed += pay;
+      if (h.stack == 0) h.allIn = true;
+    }
     _notify();
+    _completeHuman();
   }
 
-  void humanRaise(PlayerModel human, int raiseAmount) {
+  void humanRaise(int humanIndex, int extraRaiseAmount) {
     final currentBet = players
         .map((pl) => pl.contributed)
         .reduce((a, b) => max(a, b));
-    final toCall = currentBet - human.contributed;
-    final desired = max(toCall + raiseAmount, toCall + bigBlind);
-    final pay = min(human.stack, desired);
-    human.stack -= pay;
-    human.contributed += pay;
-    if (human.stack == 0) human.allIn = true;
+    final h = players[humanIndex];
+    final toCall = currentBet - h.contributed;
+    final desired = max(toCall + extraRaiseAmount, toCall + bigBlind);
+    final pay = min(h.stack, desired);
+    h.stack -= pay;
+    h.contributed += pay;
+    if (h.stack == 0) h.allIn = true;
     _notify();
+    _completeHuman();
   }
 
-  void humanAllIn(PlayerModel human) {
-    final pay = human.stack;
-    human.contributed += pay;
-    human.stack = 0;
-    human.allIn = true;
+  void humanAllIn(int humanIndex) {
+    final h = players[humanIndex];
+    final pay = h.stack;
+    h.contributed += pay;
+    h.stack = 0;
+    h.allIn = true;
     _notify();
+    _completeHuman();
   }
 
-  /// Advance stage: flop/turn/river/showdown (UI controls flow)
-  void advanceStage() {
-    final curr = notifier.value.stage;
-    if (curr == GameStage.preflop) {
-      _deck.draw();
-      _community.addAll(_deck.drawMultiple(3));
-      notifier.value = notifier.value.copyWith(
-        community: List.unmodifiable(_community),
-        stage: GameStage.flop,
-      );
-    } else if (curr == GameStage.flop) {
-      _deck.draw();
-      _community.add(_deck.draw());
-      notifier.value = notifier.value.copyWith(
-        community: List.unmodifiable(_community),
-        stage: GameStage.turn,
-      );
-    } else if (curr == GameStage.turn) {
-      _deck.draw();
-      _community.add(_deck.draw());
-      notifier.value = notifier.value.copyWith(
-        community: List.unmodifiable(_community),
-        stage: GameStage.river,
-      );
-    } else if (curr == GameStage.river) {
-      _handleShowdown();
-      notifier.value = notifier.value.copyWith(stage: GameStage.showdown);
+  void _completeHuman() {
+    if (_humanActionCompleter != null && !_humanActionCompleter!.isCompleted) {
+      _humanActionCompleter!.complete();
     }
-    _notify();
   }
 
   void _handleShowdown() {
@@ -311,24 +446,31 @@ class GameController {
           best = hv;
           winners.clear();
           winners.add(c);
-        } else if (hv.compareTo(best) == 0) {
+        } else if (hv.compareTo(best) == 0)
           winners.add(c);
-        }
       }
       final share = amt ~/ winners.length;
-      for (var w in winners) {
-        w.stack += share;
-      }
+      for (var w in winners) w.stack += share;
       final leftover = amt - share * winners.length;
       if (leftover > 0) winners.first.stack += leftover;
       prev = level;
     }
-    for (var p in players) {
-      p.contributed = 0;
-    }
+    for (var p in players) p.contributed = 0;
+    removeBustedPlayers();
+    _notify();
   }
 
-  void rotateDealer() {
+  // small helper to get index of human (assumes exactly one human)
+  int humanIndex() {
+    for (int i = 0; i < players.length; i++) if (players[i].isHuman) return i;
+    return -1;
+  }
+
+  void removeBustedPlayers() {
+    players.removeWhere((p) => p.stack <= 0);
+  }
+
+  void _rotateDealer() {
     _dealerIndex = (_dealerIndex + 1) % players.length;
     notifier.value = notifier.value.copyWith(dealerIndex: _dealerIndex);
     _notify();
