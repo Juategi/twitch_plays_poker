@@ -5,6 +5,7 @@ import 'package:twitch_poker_game/engine/engine.dart';
 import 'package:twitch_poker_game/engine/models/card.dart';
 import 'package:twitch_poker_game/engine/models/game_state.dart';
 import 'package:twitch_poker_game/engine/models/player.dart';
+import 'package:twitch_poker_game/ui/card_widget.dart';
 
 void main() {
   runApp(const PokerApp());
@@ -80,7 +81,7 @@ class _PokerHomeState extends State<PokerHome> {
                         Wrap(
                           spacing: 8,
                           children: gs.community
-                              .map((c) => _cardWidget(c))
+                              .map((c) => CardWidget(card: c))
                               .toList(),
                         ),
                         const SizedBox(height: 8),
@@ -145,7 +146,7 @@ class _PokerHomeState extends State<PokerHome> {
                                   Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: p.hole
-                                        .map((c) => _cardWidget(c))
+                                        .map((c) => CardWidget(card: c))
                                         .toList(),
                                   ),
                                 ],
@@ -153,7 +154,7 @@ class _PokerHomeState extends State<PokerHome> {
                             : Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: p.hole
-                                    .map((c) => _cardWidget(c))
+                                    .map((c) => CardWidget(card: c))
                                     .toList(),
                               ),
                       );
@@ -185,20 +186,6 @@ class _PokerHomeState extends State<PokerHome> {
             );
           },
         ),
-      ),
-    );
-  }
-
-  Widget _cardWidget(CardModel c) {
-    return Container(
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(6),
-        color: Colors.green[700],
-      ),
-      child: Text(
-        c.toString(),
-        style: const TextStyle(fontWeight: FontWeight.bold),
       ),
     );
   }

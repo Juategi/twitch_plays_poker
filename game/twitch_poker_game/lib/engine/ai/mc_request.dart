@@ -8,6 +8,8 @@ import 'package:twitch_poker_game/engine/models/hand.dart';
 /// ----------------------
 /// MonteCarlo worker for compute()
 /// ----------------------
+///
+/// //TODO: refactor to implement PokerAIBase
 class MCRequest {
   final List<CardModel> myHole;
   final List<CardModel> community;

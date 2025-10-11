@@ -45,6 +45,11 @@ class CardModel {
 
   int get rankValue => Rank.values.indexOf(rank) + 2;
 
+  String getAssetPath() {
+    final rankStr = rank.shortName;
+    return 'assets/cards/${rankStr}_of_${suit.toString().split('.').last}.svg';
+  }
+
   @override
   String toString() {
     const rankNames = [
