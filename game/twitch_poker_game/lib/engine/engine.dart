@@ -2,7 +2,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
-import 'package:twitch_poker_game/engine/mc_request.dart';
+import 'package:twitch_poker_game/engine/ai/mc_request.dart';
 import 'package:twitch_poker_game/engine/models/card.dart';
 import 'package:twitch_poker_game/engine/models/deck.dart';
 import 'package:twitch_poker_game/engine/models/game_state.dart';
@@ -166,8 +166,7 @@ class GameController {
 
     // NEW: control de raises por ronda
     int raisesSoFar = 0;
-    const int maxRaisesPerRound =
-        3; // límite razonable para evitar bonkers-raises
+    const int maxRaisesPerRound = 3;
 
     while (!finished && iterations < maxIterations) {
       iterations++;
@@ -198,17 +197,34 @@ class GameController {
           final rnd = Random();
           final delaySeconds = 3 + rnd.nextInt(3); // 3, 4 o 5 segundos
           await Future.delayed(Duration(seconds: delaySeconds));
-
           final prevBet = currentBet;
-          await _aiActForPlayer(
-            p,
-            toCall,
-            currentBet,
-            minRaise,
-            stage,
-            raisesSoFar,
-            maxRaisesPerRound,
-          );
+          if (p.ai != null) {
+            final action = await p.ai!.decideAction(
+              player: p,
+              opponents: players.where((pl) => pl != p && !pl.folded).toList(),
+              community: _community,
+              currentBet: currentBet,
+              minRaise: bigBlind,
+              stage: stage,
+              raisesSoFar: raisesSoFar,
+              maxRaisesPerRound: maxRaisesPerRound,
+            );
+
+            _applyAction(
+              p,
+              action,
+            ); // tu función actual que aplica fold/call/raise
+          } else {
+            await _aiActForPlayer(
+              p,
+              toCall,
+              currentBet,
+              minRaise,
+              stage,
+              raisesSoFar,
+              maxRaisesPerRound,
+            );
+          }
           // recalc currentBet and update raises counter if it increased
           final newBet = players
               .map((pl) => pl.contributed)
@@ -245,6 +261,35 @@ class GameController {
       }
 
       idx = (idx + 1) % players.length;
+    }
+  }
+
+  void _applyAction(PlayerModel p, String action) {
+    final toCall =
+        players.map((pl) => pl.contributed).fold(0, (a, b) => a > b ? a : b) -
+        p.contributed;
+    if (action == 'fold' && toCall == 0) {
+      // Si el jugador quiere foldear pero no hay nada que pagar, lo convertimos en check
+      action = 'call';
+    }
+    switch (action) {
+      case "fold":
+        p.folded = true;
+        break;
+      case "call":
+        final pay = p.stack >= toCall ? toCall : p.stack;
+        p.stack -= pay;
+        p.contributed += pay;
+        if (p.stack == 0) p.allIn = true;
+        break;
+      case "raise":
+        final minRaise = bigBlind;
+        final raiseAmount = max(toCall + minRaise, (toCall * 2).toInt());
+        final pay = p.stack >= raiseAmount ? raiseAmount : p.stack;
+        p.stack -= pay;
+        p.contributed += pay;
+        if (p.stack == 0) p.allIn = true;
+        break;
     }
   }
 

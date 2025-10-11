@@ -16,7 +16,26 @@ enum Rank {
   jack,
   queen,
   king,
-  ace,
+  ace;
+
+  String get shortName {
+    const names = {
+      Rank.two: '2',
+      Rank.three: '3',
+      Rank.four: '4',
+      Rank.five: '5',
+      Rank.six: '6',
+      Rank.seven: '7',
+      Rank.eight: '8',
+      Rank.nine: '9',
+      Rank.ten: 'T',
+      Rank.jack: 'J',
+      Rank.queen: 'Q',
+      Rank.king: 'K',
+      Rank.ace: 'A',
+    };
+    return names[this]!;
+  }
 }
 
 class CardModel {

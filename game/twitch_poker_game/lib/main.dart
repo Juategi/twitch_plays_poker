@@ -1,5 +1,6 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
+import 'package:twitch_poker_game/engine/ai/poker_ai_mini_cfr.dart';
 import 'package:twitch_poker_game/engine/engine.dart';
 import 'package:twitch_poker_game/engine/models/card.dart';
 import 'package:twitch_poker_game/engine/models/game_state.dart';
@@ -36,9 +37,13 @@ class _PokerHomeState extends State<PokerHome> {
     super.initState();
     final players = <PlayerModel>[
       PlayerModel('You', 2000, isHuman: true),
-      PlayerModel('AI_1', 2000),
-      PlayerModel('AI_2', 2000),
-      PlayerModel('AI_3', 2000),
+      PlayerModel('AI_1', 2000, ai: PokerAIMiniCFR(style: PlayerStyle.tight)),
+      PlayerModel('AI_2', 2000, ai: PokerAIMiniCFR(style: PlayerStyle.loose)),
+      PlayerModel(
+        'AI_3',
+        2000,
+        ai: PokerAIMiniCFR(style: PlayerStyle.aggressive),
+      ),
     ];
     controller = GameController(
       players: players,
