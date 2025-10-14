@@ -285,18 +285,18 @@ class GameController {
 
   // Human action APIs — these update state and complete the waiting completer so flow resumes.
   // All amounts are "pay now" (for raises, pass desired extra amount)
-  void humanFold(int humanIndex) {
-    final h = players[humanIndex];
+  void humanFold() {
+    final h = players.firstWhere((p) => p.isHuman);
     h.folded = true;
     _notify();
     _completeHuman();
   }
 
-  void humanCheckOrCall(int humanIndex) {
+  void humanCheckOrCall() {
     final currentBet = players
         .map((pl) => pl.contributed)
         .reduce((a, b) => max(a, b));
-    final h = players[humanIndex];
+    final h = players.firstWhere((p) => p.isHuman);
     final toCall = currentBet - h.contributed;
     if (toCall == 0) {
       // check
@@ -310,11 +310,11 @@ class GameController {
     _completeHuman();
   }
 
-  void humanRaise(int humanIndex, int extraRaiseAmount) {
+  void humanRaise(int extraRaiseAmount) {
     final currentBet = players
         .map((pl) => pl.contributed)
         .reduce((a, b) => max(a, b));
-    final h = players[humanIndex];
+    final h = players.firstWhere((p) => p.isHuman);
     final toCall = currentBet - h.contributed;
     final desired = max(toCall + extraRaiseAmount, toCall + bigBlind);
     final pay = min(h.stack, desired);
@@ -325,8 +325,8 @@ class GameController {
     _completeHuman();
   }
 
-  void humanAllIn(int humanIndex) {
-    final h = players[humanIndex];
+  void humanAllIn() {
+    final h = players.firstWhere((p) => p.isHuman);
     final pay = h.stack;
     h.contributed += pay;
     h.stack = 0;
