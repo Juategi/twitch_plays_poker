@@ -1,4 +1,5 @@
 import 'package:twitch_poker_game/engine/ai/poker_ai_base.dart';
+import 'package:twitch_poker_game/engine/models/action.dart';
 import 'package:twitch_poker_game/engine/models/card.dart';
 
 /// ----------------------
@@ -15,7 +16,14 @@ class PlayerModel {
       0.8 + (0.4 * (DateTime.now().microsecond % 1000) / 1000);
   final bool isHuman;
   PokerAIBase? ai;
-  PlayerModel(this.id, this.stack, {this.isHuman = false, this.ai});
+  PokerAction? lastAction;
+  PlayerModel(
+    this.id,
+    this.stack, {
+    this.isHuman = false,
+    this.ai,
+    this.lastAction,
+  });
   void clearForNewHand() {
     hole.clear();
     folded = false;

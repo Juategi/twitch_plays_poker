@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:twitch_poker_game/engine/models/action.dart';
 import 'package:twitch_poker_game/engine/models/card.dart';
 import 'package:twitch_poker_game/engine/models/deck.dart';
 import 'package:twitch_poker_game/engine/models/game_state.dart';
@@ -254,31 +255,45 @@ class GameController {
     }
   }
 
-  void _applyAction(PlayerModel p, String action) {
+  void _applyAction(PlayerModel p, PokerAction action) {
     final toCall =
         players.map((pl) => pl.contributed).fold(0, (a, b) => a > b ? a : b) -
         p.contributed;
-    if (action == 'fold' && toCall == 0) {
+    if (action == PokerAction(ActionEnum.fold) && toCall == 0) {
       // Si el jugador quiere foldear pero no hay nada que pagar, lo convertimos en check
-      action = 'call';
+      action = PokerAction(ActionEnum.call);
     }
-    switch (action) {
-      case "fold":
+    p.lastAction = action;
+    switch (action.type) {
+      case (ActionEnum.fold):
         p.folded = true;
         break;
-      case "call":
+      case (ActionEnum.call):
         final pay = p.stack >= toCall ? toCall : p.stack;
         p.stack -= pay;
         p.contributed += pay;
+        action.amount = pay;
+        if (pay == 0) p.lastAction = PokerAction(ActionEnum.check);
         if (p.stack == 0) p.allIn = true;
         break;
-      case "raise":
+      case (ActionEnum.raise):
         final minRaise = bigBlind;
         final raiseAmount = max(toCall + minRaise, (toCall * 2).toInt());
         final pay = p.stack >= raiseAmount ? raiseAmount : p.stack;
         p.stack -= pay;
         p.contributed += pay;
+        action.amount = pay;
         if (p.stack == 0) p.allIn = true;
+        break;
+      case (ActionEnum.allIn):
+        final pay = p.stack;
+        p.contributed += pay;
+        action.amount = pay;
+        p.stack = 0;
+        p.allIn = true;
+        break;
+      case (ActionEnum.check):
+        // nothing to do
         break;
     }
   }
@@ -288,6 +303,7 @@ class GameController {
   void humanFold() {
     final h = players.firstWhere((p) => p.isHuman);
     h.folded = true;
+    h.lastAction = PokerAction(ActionEnum.fold);
     _notify();
     _completeHuman();
   }
@@ -299,13 +315,15 @@ class GameController {
     final h = players.firstWhere((p) => p.isHuman);
     final toCall = currentBet - h.contributed;
     if (toCall == 0) {
-      // check
+      h.lastAction = PokerAction(ActionEnum.check);
     } else {
       final pay = min(h.stack, toCall);
       h.stack -= pay;
       h.contributed += pay;
       if (h.stack == 0) h.allIn = true;
+      h.lastAction = PokerAction(ActionEnum.call, amount: toCall);
     }
+
     _notify();
     _completeHuman();
   }
@@ -321,6 +339,7 @@ class GameController {
     h.stack -= pay;
     h.contributed += pay;
     if (h.stack == 0) h.allIn = true;
+    h.lastAction = PokerAction(ActionEnum.raise, amount: pay);
     _notify();
     _completeHuman();
   }
@@ -331,6 +350,7 @@ class GameController {
     h.contributed += pay;
     h.stack = 0;
     h.allIn = true;
+    h.lastAction = PokerAction(ActionEnum.allIn, amount: pay);
     _notify();
     _completeHuman();
   }

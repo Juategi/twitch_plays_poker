@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:twitch_poker_game/engine/ai/opponent_modeling.dart';
 import 'package:twitch_poker_game/engine/ai/poker_ai_base.dart';
+import 'package:twitch_poker_game/engine/models/action.dart';
 import 'package:twitch_poker_game/engine/models/card.dart';
 import 'package:twitch_poker_game/engine/models/player.dart';
 
@@ -15,7 +16,7 @@ class PokerAIMiniCFR implements PokerAIBase {
   PokerAIMiniCFR({this.style = PlayerStyle.tight});
 
   @override
-  Future<String> decideAction({
+  Future<PokerAction> decideAction({
     required PlayerModel player,
     required List<PlayerModel> opponents,
     required List<CardModel> community,
@@ -59,17 +60,21 @@ class PokerAIMiniCFR implements PokerAIBase {
     final bluffChance = _bluffChance(stage);
 
     // 1️⃣ Evaluar equity vs pot odds primero (decisión racional base)
-    if (finalEquity < potOdds) return "fold";
-    if (finalEquity < potOdds + 0.15) return "call";
+    if (finalEquity < potOdds) return PokerAction(ActionEnum.fold);
+    if (finalEquity < potOdds + 0.15) return PokerAction(ActionEnum.call);
 
     // 2️⃣ Si tiene buena equity y puede subir, valorar raise (apuesta por valor)
-    if (canRaise && finalEquity > 0.7) return "raise";
+    if (canRaise && finalEquity > 0.7) {
+      return PokerAction(ActionEnum.raise, amount: minRaise);
+    }
 
     // 3️⃣ Si la equity es media pero hay chance de bluff, a veces raise
-    if (rnd < bluffChance && canRaise && finalEquity > 0.4) return "raise";
+    if (rnd < bluffChance && canRaise && finalEquity > 0.4) {
+      return PokerAction(ActionEnum.raise);
+    }
 
     // 4️⃣ Si nada anterior aplica, por defecto call
-    return "call";
+    return PokerAction(ActionEnum.call);
   }
 
   // --- Definición de la probabilidad de bluff según estilo y etapa ---

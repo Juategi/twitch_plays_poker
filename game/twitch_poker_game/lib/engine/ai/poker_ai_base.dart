@@ -1,9 +1,10 @@
+import 'package:twitch_poker_game/engine/models/action.dart';
 import 'package:twitch_poker_game/engine/models/card.dart';
 import 'package:twitch_poker_game/engine/models/player.dart';
 
 abstract class PokerAIBase {
   /// Devuelve la acción de la IA: "fold", "call", "raise"
-  Future<String> decideAction({
+  Future<PokerAction> decideAction({
     required PlayerModel player,
     required List<PlayerModel> opponents,
     required List<CardModel> community,

@@ -6,6 +6,7 @@ import 'package:twitch_poker_game/engine/models/card.dart';
 import 'package:twitch_poker_game/engine/models/game_state.dart';
 import 'package:twitch_poker_game/engine/models/player.dart';
 import 'package:twitch_poker_game/ui/card_widget.dart';
+import 'package:twitch_poker_game/ui/player_widget.dart';
 
 class PokerHome extends StatefulWidget {
   const PokerHome({super.key});
@@ -60,70 +61,104 @@ class _PokerHomeState extends State<PokerHome> {
               ),
               child: Column(
                 children: [
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
+                  Expanded(
+                    child: SizedBox(
                       child: Column(
                         children: [
-                          Text(
-                            'Stage: ${gs.stage}   Pot: ${gs.pot}   Dealer: ${gs.dealerIndex}',
+                          Builder(
+                            builder: (context) {
+                              final idx = 2;
+                              if (gs.players.length <= idx) {
+                                return const SizedBox.shrink();
+                              }
+                              final p = gs.players[idx];
+                              return PlayerWidget(
+                                idx: idx,
+                                player: p,
+                                controller: controller,
+                              );
+                            },
                           ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            children: gs.community
-                                .map((c) => CardWidget(card: c))
-                                .toList(),
+                          const Spacer(),
+                          Row(
+                            children: [
+                              Builder(
+                                builder: (context) {
+                                  final idx = 1;
+                                  if (gs.players.length <= idx) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  final p = gs.players[idx];
+                                  return PlayerWidget(
+                                    idx: idx,
+                                    player: p,
+                                    controller: controller,
+                                  );
+                                },
+                              ),
+                              const Spacer(),
+                              Card(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        'Stage: ${gs.stage}   Pot: ${gs.pot}   Dealer: ${gs.dealerIndex}',
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Wrap(
+                                        spacing: 8,
+                                        children: gs.community
+                                            .map((c) => CardWidget(card: c))
+                                            .toList(),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      if (gs.waitReason ==
+                                          WaitReason.waitingForHuman)
+                                        Text(
+                                          'Waiting for human action...',
+                                          style: const TextStyle(
+                                            color: Colors.amber,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const Spacer(),
+                              Builder(
+                                builder: (context) {
+                                  final idx = 3;
+                                  if (gs.players.length <= idx) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  final p = gs.players[idx];
+                                  return PlayerWidget(
+                                    idx: idx,
+                                    player: p,
+                                    controller: controller,
+                                  );
+                                },
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 8),
-                          if (gs.waitReason == WaitReason.waitingForHuman)
-                            Text(
-                              'Waiting for human action...',
-                              style: const TextStyle(color: Colors.amber),
-                            ),
+                          const Spacer(),
+                          Builder(
+                            builder: (context) {
+                              final idx = 0;
+                              if (gs.players.length <= idx) {
+                                return const SizedBox.shrink();
+                              }
+                              final p = gs.players[idx];
+                              return PlayerWidget(
+                                idx: idx,
+                                player: p,
+                                controller: controller,
+                              );
+                            },
+                          ),
                         ],
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: ListView(
-                      children: gs.players.asMap().entries.map((e) {
-                        final idx = e.key;
-                        final p = e.value;
-                        return Row(
-                          children: [
-                            CircleAvatar(
-                              backgroundColor:
-                                  controller.currentTurnIndex == idx
-                                  ? Colors.green
-                                  : null,
-                              child: Text(
-                                p.isHuman ? 'Y' : p.id.split('_').last,
-                              ),
-                            ),
-                            Column(
-                              children: [
-                                Text('${p.id} — stack ${p.stack}'),
-                                Text(
-                                  'contrib ${p.contributed} ${p.folded ? "(folded)" : ""} ${p.allIn ? "(all-in)" : ""}',
-                                ),
-                              ],
-                            ),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: p.hole
-                                      .map((c) => CardWidget(card: c))
-                                      .toList(),
-                                ),
-                              ],
-                            ),
-                          ],
-                        );
-                      }).toList(),
                     ),
                   ),
                   const SizedBox(height: 8),
