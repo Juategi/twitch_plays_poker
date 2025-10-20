@@ -29,6 +29,7 @@ class PlayerModel {
     folded = false;
     allIn = false;
     contributed = 0;
+    lastAction = null;
   }
 
   @override

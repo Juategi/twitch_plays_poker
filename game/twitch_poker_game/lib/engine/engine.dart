@@ -24,7 +24,6 @@ class GameController {
 
   // internal completer used to pause until human acts
   Completer<void>? _humanActionCompleter;
-  int _humanIndexWaiting = -1;
   int currentTurnIndex = -1; // -1 = nadie, 0..n = jugador activo
 
   GameController({
@@ -67,7 +66,9 @@ class GameController {
     _rotateDealer();
     _deck = Deck.full()..shuffle();
     _community = [];
-    for (var p in players) p.clearForNewHand();
+    for (var p in players) {
+      p.clearForNewHand();
+    }
 
     // deal
     for (int i = 0; i < 2; i++) {
@@ -178,7 +179,6 @@ class GameController {
         _notify();
         if (p.isHuman) {
           // Pause for human action
-          _humanIndexWaiting = idx;
           _humanActionCompleter = Completer<void>();
           _notify(
             waitReason: WaitReason.waitingForHuman,
@@ -186,7 +186,6 @@ class GameController {
           );
           await _humanActionCompleter!.future;
           _humanActionCompleter = null;
-          _humanIndexWaiting = -1;
           // recalc currentBet after human action
           currentBet = players
               .map((pl) => pl.contributed)
@@ -309,10 +308,10 @@ class GameController {
   }
 
   void humanCheckOrCall() {
+    final h = players.firstWhere((p) => p.isHuman);
     final currentBet = players
         .map((pl) => pl.contributed)
         .reduce((a, b) => max(a, b));
-    final h = players.firstWhere((p) => p.isHuman);
     final toCall = currentBet - h.contributed;
     if (toCall == 0) {
       h.lastAction = PokerAction(ActionEnum.check);
@@ -326,6 +325,15 @@ class GameController {
 
     _notify();
     _completeHuman();
+  }
+
+  int getCurrentBet(String id) {
+    final currentBet = players
+        .map((pl) => pl.contributed)
+        .reduce((a, b) => max(a, b));
+    final player = players.firstWhere((p) => p.id == id);
+    final toCall = currentBet - player.contributed;
+    return toCall;
   }
 
   void humanRaise(int extraRaiseAmount) {

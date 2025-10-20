@@ -35,9 +35,16 @@ class PlayerWidget extends StatelessWidget {
             Column(
               children: [
                 Text('${player.id} — stack ${player.stack}'),
-                Text(
-                  'contrib ${player.contributed} ${player.folded ? "(folded)" : ""} ${player.allIn ? "(all-in)" : ""}',
-                ),
+                if (controller.currentTurnIndex == idx &&
+                    controller.getCurrentBet(player.id) != 0)
+                  Text(
+                    'To call: ${controller.getCurrentBet(player.id)}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                    ),
+                  ),
+                Text(player.lastAction?.toString() ?? ''),
               ],
             ),
           ],
